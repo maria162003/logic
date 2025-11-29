@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Logic Lex - Aplicación Legal Móvil">
+  
+  <!-- Viewport para diseño móvil -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Logic Lex">
+  
+  <!-- PWA meta tags -->
+  <meta name="theme-color" content="#BB8B30">
+  <meta name="background-color" content="#FFFFFF">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Logic Lex - Asistencia Legal Móvil</title>
+  <link rel="manifest" href="manifest.json">
+  
+  <!-- 📱 FORZAR DISEÑO 100% MOBILE NATIVO -->
+  <style>
+    /* Reset completo para eliminar look web */
+    * {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      -webkit-tap-highlight-color: rgba(187, 139, 48, 0.1);
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      overflow: hidden !important;
+      background: #000 !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    
+    /* 📱 SIMULAR PANTALLA MÓVIL COMPLETA */
+    body {
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      background: linear-gradient(135deg, #1e1e1e, #2d2d2d) !important;
+    }
+    
+    /* 📱 CONTENEDOR MÓVIL QUE OCUPA TODA LA PANTALLA */
+    flt-glass-pane {
+      width: 393px !important;        /* Pixel 5 width */
+      height: 851px !important;       /* Pixel 5 height */
+      max-width: 393px !important;
+      max-height: 851px !important;
+      background: #fff !important;
+      border-radius: 0 !important;    /* Sin bordes para pantalla completa */
+      box-shadow: 0 0 50px rgba(0,0,0,0.8) !important;
+      overflow: hidden !important;
+      position: relative !important;
+      transform: scale(0.85) !important; /* Escalar para que quepa en pantalla */
+    }
+    
+    /* Canvas Flutter optimizado */
+    flt-scene-host {
+      width: 393px !important;
+      height: 851px !important;
+      background: #fff !important;
+    }
+    
+    /* 📱 BARRA DE ESTADO MÓVIL SIMULADA - REMOVIDA */
+    
+    
+    /* 🚫 OCULTAR COMPLETAMENTE SCROLLBARS */
+    ::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+    }
+    
+    /* 📱 OPTIMIZACIONES TÁCTILES */
+    html {
+      touch-action: manipulation !important;
+      -webkit-text-size-adjust: 100% !important;
+      -ms-text-size-adjust: 100% !important;
+    }
+    
+    /* 🔒 PREVENIR ZOOM Y COMPORTAMIENTOS WEB */
+    meta[name="viewport"] {
+      content: "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" !important;
+    }
+    
+    /* 📱 INPUTS ESTILO MÓVIL NATIVO */
+    input, textarea, select, button {
+      font-size: 16px !important;
+      border-radius: 10px !important;
+      border: none !important;
+      outline: none !important;
+      -webkit-appearance: none !important;
+      -moz-appearance: none !important;
+      appearance: none !important;
+    }
+    
+    /* 🚫 OCULTAR BARRAS DE ADVERTENCIA Y DEBUG DE FLUTTER */
+    [flutter-debug], [flutter-warning], .flutter-debug-banner, .flutter-warning-banner,
+    flt-semantics-host, flt-overlay, .debug-banner, .warning-banner {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+    
+    /* 🚫 ELIMINAR BARRAS AMARILLAS/NEGRAS DE OVERFLOW */
+    .flutter-view [style*="yellow"], 
+    .flutter-view [style*="black"],
+    [style*="background: repeating-linear-gradient"],
+    [style*="yellow"],
+    [style*="rgba(255, 255, 0"],
+    div[style*="repeating-linear-gradient(90deg, #ffff00, #ffff00 10px, #000000 10px, #000000 20px)"],
+    *[style*="repeating-linear-gradient(90deg, rgb(255, 255, 0)"],
+    /* Reglas adicionales para barras de warning */
+    flt-semantics-host,
+    flt-glass-pane > div[style*="background-color: rgb(255, 255, 0)"],
+    div[style*="background: yellow"],
+    div[style*="border: yellow"],
+    .flutter-overflow-bar,
+    .flutter-warning-bar,
+    /* Eliminar específicamente las barras de overflow */
+    div[style*="BOTTOM OVERFLOWED"],
+    div[style*="overflow"],
+    *[class*="overflowed"],
+    *[style*="overflowed"],
+    /* Ocultar cualquier elemento con patron de rayas amarillas/negras */
+    *[style*="repeating-linear-gradient"]:not(.custom-element),
+    div[style*="background-image: repeating-linear-gradient"],
+    /* REGLAS ADICIONALES MÁS ESPECÍFICAS PARA BARRAS DE OVERFLOW */
+    div[style*="background-image: repeating-linear-gradient(90deg, rgb(255, 255, 0) 0px, rgb(255, 255, 0) 10px, rgb(0, 0, 0) 10px, rgb(0, 0, 0) 20px)"],
+    div[style*="background-image: repeating-linear-gradient(90deg, #ffff00 0px, #ffff00 10px, #000000 10px, #000000 20px)"],
+    div[style*="background: repeating-linear-gradient(90deg, yellow, yellow 10px, black 10px, black 20px)"],
+    flt-glass-pane > div[style*="border-top"],
+    flt-glass-pane > div[style*="border-bottom"],
+    flt-glass-pane > div[style*="border-left"],
+    flt-glass-pane > div[style*="border-right"],
+    /* Elementos de debug específicos de Flutter Web */
+    flt-glass-pane > div[style*="position: absolute"][style*="background"],
+    div[style*="text-align: center"][style*="color: white"],
+    div[style*="OVERFLOWED BY"] {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      width: 0 !important;
+      height: 0 !important;
+      pointer-events: none !important;
+      position: absolute !important;
+      left: -9999px !important;
+      z-index: -1 !important;
+      transform: scale(0) !important;
+    }
+    
+    /* 🚫 PREVENIR CUALQUIER OVERLAY DE DEBUG */
+    *[data-debug], *[data-flutter-debug], *[class*="debug"], *[class*="warning"],
+    flt-semantics, flt-semantics-container {
+      display: none !important;
+    }
+    
+    /* 🎯 OCULTAR CURSOR EN ELEMENTOS NO INTERACTIVOS */
+    div, span, p, h1, h2, h3, h4, h5, h6 {
+      cursor: default !important;
+    }
+    
+    /* Ocultar loader por defecto de Flutter en web dev */
+    .flutter-loader { display: none !important; }
+
+    /* Overlay de video splash previo a Flutter */
+    #splash-video-overlay {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      z-index: 999999;
+      opacity: 1;
+      transition: opacity .4s ease;
+    }
+    #splash-video-overlay.hide { opacity: 0; pointer-events: none; }
+    #splash-video-overlay video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover; /* cubrir sin deformar */
+    }
+    
+    /* 📱 Ajuste para dispositivos móviles - centrar el logo */
+    @media (max-width: 768px) {
+      #splash-video-overlay video {
+        object-fit: cover;
+        object-position: 54% center; /* Mover 4% hacia la derecha del centro */
+      }
+    }
+    
+    /* 📱 Para pantallas muy pequeñas (teléfonos) */
+    @media (max-width: 480px) {
+      #splash-video-overlay video {
+        object-fit: cover;
+        object-position: 54% center; /* Mover 4% hacia la derecha del centro */
+      }
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* 📱 RESPONSIVE PARA PANTALLAS MUY PEQUEÑAS */
+    @media (max-height: 700px) {
+      flt-glass-pane {
+        transform: scale(0.75) !important;
+      }
+    }
+    
+    @media (max-width: 400px) {
+      flt-glass-pane {
+        transform: scale(0.9) !important;
+        width: 100vw !important;
+        height: 100vh !important;
+      }
+    }
+  </style>
+  
+  <script>
+    // Script para eliminar barras de advertencia dinámicamente
+    function removeOverflowBars() {
+      // Selectores para elementos de overflow/warning
+      const selectors = [
+        'div[style*="repeating-linear-gradient"]',
+        'div[style*="background-image: repeating-linear-gradient"]',
+        'div[style*="background: repeating-linear-gradient"]',
+        'div[style*="yellow"]',
+        'div[style*="OVERFLOWED"]',
+        'div[style*="overflow"]',
+        '[class*="overflow"]',
+        '[class*="warning"]'
+      ];
+      
+      selectors.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => {
+          // Verificar si es realmente una barra de warning
+          const style = el.getAttribute('style') || '';
+          if (style.includes('repeating-linear-gradient') || 
+              style.includes('yellow') || 
+              style.includes('rgb(255, 255, 0)') ||
+              el.textContent.includes('OVERFLOWED')) {
+            el.style.display = 'none';
+            el.style.visibility = 'hidden';
+            el.style.opacity = '0';
+            el.style.position = 'absolute';
+            el.style.left = '-9999px';
+            el.style.zIndex = '-1';
+          }
+        });
+      });
+    }
+    
+    // Ejecutar al cargar
+    document.addEventListener('DOMContentLoaded', removeOverflowBars);
+    
+    // Ejecutar periódicamente para elementos creados dinámicamente
+    setInterval(removeOverflowBars, 500);
+    
+    // Observer para elementos añadidos dinámicamente (esperar a que exista <body>)
+    document.addEventListener('DOMContentLoaded', () => {
+      const observer = new MutationObserver(removeOverflowBars);
+      const target = document.body || document.documentElement;
+      if (target) {
+        observer.observe(target, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['style', 'class']
+        });
+      }
+    });
+  </script>
+  <script>
+    // Ocultar overlay cuando Flutter renderiza su primer frame
+    window.addEventListener('flutter-first-frame', () => {
+      const overlay = document.getElementById('splash-video-overlay');
+      if (overlay) {
+        overlay.classList.add('hide');
+        setTimeout(() => overlay.remove(), 450);
+      }
+    });
+  </script>
+</head>
+<body>
+  <!-- Video splash overlay (copia el video a web/videos/fondocarga.mp4) -->
+  <div id="splash-video-overlay">
+    <video autoplay muted playsinline>
+      <source src="videos/fondocarga.mp4" type="video/mp4" />
+    </video>
+  </div>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
