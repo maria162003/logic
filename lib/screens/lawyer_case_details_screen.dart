@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/supabase_service.dart';
 import '../utils/app_colors.dart';
+
+// Función para formatear moneda en formato colombiano
+String _formatCurrency(double amount) {
+  final formatter = NumberFormat('#,##0', 'es_CO');
+  return formatter.format(amount);
+}
 
 class LawyerCaseDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> caseData;
@@ -89,11 +96,11 @@ class _LawyerCaseDetailsScreenState extends State<LawyerCaseDetailsScreen> {
                   const SizedBox(height: 20),
                   _buildCaseInfo(fee, estimatedDays, formattedDate),
                   const SizedBox(height: 20),
+                  _buildStatusUpdateSection(),
+                  const SizedBox(height: 20),
                   _buildClientInfo(),
                   const SizedBox(height: 20),
                   _buildMessagesSection(),
-                  const SizedBox(height: 20),
-                  _buildActionButtons(),
                 ],
               ),
             ),
@@ -191,7 +198,7 @@ class _LawyerCaseDetailsScreenState extends State<LawyerCaseDetailsScreen> {
             const SizedBox(height: 16),
             _buildInfoRow('Descripción', widget.caseData['description'] ?? 'Sin descripción'),
             const SizedBox(height: 12),
-            _buildInfoRow('Tarifa Acordada', '\$${fee.toStringAsFixed(2)}'),
+            _buildInfoRow('Tarifa Acordada', '\$ ${_formatCurrency(fee)} COP'),
             const SizedBox(height: 12),
             _buildInfoRow('Tiempo Estimado', '$estimatedDays días'),
             const SizedBox(height: 12),
@@ -414,20 +421,102 @@ class _LawyerCaseDetailsScreenState extends State<LawyerCaseDetailsScreen> {
     );
   }
 
-  Widget _buildActionButtons() {
-    return Container(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: () => _updateCaseStatus(),
-        icon: const Icon(Icons.update),
-        label: const Text('Actualizar Estado'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+  Widget _buildStatusUpdateSection() {
+    final currentStatus = widget.caseData['status'] ?? 'assigned';
+    
+    return Card(
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Actualizar Estado',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildStatusRadioOption('assigned', 'En preparación', Colors.green, currentStatus),
+            const SizedBox(height: 12),
+            _buildStatusRadioOption('active', 'En trámite', Colors.orange, currentStatus),
+            const SizedBox(height: 12),
+            _buildStatusRadioOption('completed', 'Terminado', Colors.purple, currentStatus),
+            const SizedBox(height: 12),
+            _buildStatusRadioOption('cancelled', 'Cancelado', Colors.red, currentStatus),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusRadioOption(String status, String label, Color color, String currentStatus) {
+    final bool isCurrentStatus = currentStatus == status;
+    
+    return InkWell(
+      onTap: isCurrentStatus ? null : () => _confirmStatusUpdate(status, label),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isCurrentStatus ? color.withValues(alpha: 0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isCurrentStatus ? color : Colors.grey[700]!,
+            width: 2,
           ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: isCurrentStatus ? color : Colors.transparent,
+                border: Border.all(color: color, width: 2),
+                shape: BoxShape.circle,
+              ),
+              child: isCurrentStatus
+                  ? Icon(Icons.circle, color: color, size: 12)
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: GoogleFonts.poppins(
+                      color: isCurrentStatus ? color : Colors.white,
+                      fontWeight: isCurrentStatus ? FontWeight.w600 : FontWeight.normal,
+                      fontSize: 15,
+                    ),
+                  ),
+                  if (isCurrentStatus)
+                    Text(
+                      'Estado actual',
+                      style: GoogleFonts.poppins(
+                        color: color.withValues(alpha: 0.7),
+                        fontSize: 11,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (!isCurrentStatus)
+              Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.grey[600],
+                size: 16,
+              ),
+          ],
         ),
       ),
     );
@@ -466,11 +555,11 @@ class _LawyerCaseDetailsScreenState extends State<LawyerCaseDetailsScreen> {
       case 'open':
         return 'Abierto';
       case 'assigned':
-        return 'Asignado';
+        return 'En preparación';
       case 'active':
-        return 'En Progreso';
+        return 'En trámite';
       case 'completed':
-        return 'Completado';
+        return 'Terminado';
       case 'cancelled':
         return 'Cancelado';
       default:
@@ -478,85 +567,12 @@ class _LawyerCaseDetailsScreenState extends State<LawyerCaseDetailsScreen> {
     }
   }
 
-  void _updateCaseStatus() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: Text(
-          'Actualizar Estado del Caso',
-          style: GoogleFonts.poppins(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Selecciona el nuevo estado para este caso:',
-              style: GoogleFonts.poppins(color: Colors.white70),
-            ),
-            const SizedBox(height: 16),
-            _buildStatusOption('assigned', 'Asignado', Colors.blue),
-            _buildStatusOption('active', 'En Progreso', Colors.orange),
-            _buildStatusOption('completed', 'Completado', Colors.green),
-            _buildStatusOption('cancelled', 'Cancelado', Colors.red),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancelar',
-              style: GoogleFonts.poppins(color: Colors.white70),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusOption(String status, String label, Color color) {
-    final bool isCurrentStatus = widget.caseData['status'] == status;
-    
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        contentPadding: EdgeInsets.zero,
-        leading: Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: isCurrentStatus ? color : Colors.transparent,
-            border: Border.all(color: color, width: 2),
-            shape: BoxShape.circle,
-          ),
-        ),
-        title: Text(
-          label,
-          style: GoogleFonts.poppins(
-            color: isCurrentStatus ? color : Colors.white,
-            fontWeight: isCurrentStatus ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
-        subtitle: isCurrentStatus
-            ? Text(
-                'Estado actual',
-                style: GoogleFonts.poppins(
-                  color: color.withValues(alpha: 0.7),
-                  fontSize: 12,
-                ),
-              )
-            : null,
-        onTap: isCurrentStatus ? null : () => _confirmStatusUpdate(status, label),
-        enabled: !isCurrentStatus,
-      ),
-    );
-  }
-
   void _confirmStatusUpdate(String newStatus, String statusLabel) {
-    Navigator.pop(context); // Cerrar el primer diálogo
+    // Si es cancelado, mostrar diálogo especial para pedir motivo
+    if (newStatus == 'cancelled') {
+      _showCancellationReasonDialog(newStatus, statusLabel);
+      return;
+    }
     
     showDialog(
       context: context,
@@ -582,7 +598,7 @@ class _LawyerCaseDetailsScreenState extends State<LawyerCaseDetailsScreen> {
             ),
           ),
           ElevatedButton(
-            onPressed: () => _performStatusUpdate(newStatus, statusLabel),
+            onPressed: () => _performStatusUpdate(newStatus, statusLabel, null),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
             ),
@@ -596,7 +612,101 @@ class _LawyerCaseDetailsScreenState extends State<LawyerCaseDetailsScreen> {
     );
   }
 
-  Future<void> _performStatusUpdate(String newStatus, String statusLabel) async {
+  void _showCancellationReasonDialog(String newStatus, String statusLabel) {
+    final TextEditingController reasonController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Text(
+          'Motivo de Cancelación',
+          style: GoogleFonts.poppins(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Por favor, explica el motivo por el cual se cancela este caso. Este mensaje se enviará al cliente.',
+              style: GoogleFonts.poppins(
+                color: Colors.white70,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              maxLines: 4,
+              style: GoogleFonts.poppins(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Escribe el motivo de la cancelación...',
+                hintStyle: GoogleFonts.poppins(color: Colors.white38),
+                filled: true,
+                fillColor: const Color(0xFF2A2A2A),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[700]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[700]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: AppColors.primary),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              reasonController.dispose();
+              Navigator.pop(context);
+            },
+            child: Text(
+              'Cancelar',
+              style: GoogleFonts.poppins(color: Colors.white70),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (reasonController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Por favor escribe un motivo para la cancelación',
+                      style: GoogleFonts.poppins(),
+                    ),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+              final reason = reasonController.text.trim();
+              reasonController.dispose();
+              Navigator.pop(context);
+              _performStatusUpdate(newStatus, statusLabel, reason);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: Text(
+              'Cancelar Caso',
+              style: GoogleFonts.poppins(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _performStatusUpdate(String newStatus, String statusLabel, String? cancellationReason) async {
     Navigator.pop(context); // Cerrar diálogo de confirmación
     
     // Mostrar indicador de carga
@@ -622,22 +732,43 @@ class _LawyerCaseDetailsScreenState extends State<LawyerCaseDetailsScreen> {
       // Actualizar el estado en la base de datos
       await SupabaseService.updateCaseStatus(widget.caseData['id'], newStatus);
       
+      // Actualizar el progreso local según el estado
+      int newProgress = 0;
+      if (newStatus == 'completed') {
+        newProgress = 100;
+      } else if (newStatus == 'assigned') {
+        newProgress = 0;
+      } else if (newStatus == 'active') {
+        newProgress = widget.caseData['progress'] ?? 50;
+        if (newProgress == 0 || newProgress == 100) {
+          newProgress = 50;
+        }
+      }
+      
+      // Si hay motivo de cancelación, enviar mensaje al chat
+      if (cancellationReason != null && cancellationReason.isNotEmpty) {
+        await _sendCancellationMessage(cancellationReason);
+      }
+      
       Navigator.pop(context); // Cerrar indicador de carga
       
       // Mostrar éxito y actualizar la interfaz
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Estado actualizado a "$statusLabel" exitosamente',
+            newStatus == 'cancelled' 
+              ? 'Caso cancelado y notificación enviada al cliente'
+              : 'Estado actualizado a "$statusLabel" exitosamente',
             style: GoogleFonts.poppins(),
           ),
           backgroundColor: Colors.green,
         ),
       );
       
-      // Actualizar el estado local y refrescar la pantalla
+      // Actualizar el estado y progreso local, y refrescar la pantalla
       setState(() {
         widget.caseData['status'] = newStatus;
+        widget.caseData['progress'] = newProgress;
       });
       
     } catch (e) {
@@ -653,6 +784,29 @@ class _LawyerCaseDetailsScreenState extends State<LawyerCaseDetailsScreen> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  Future<void> _sendCancellationMessage(String reason) async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+
+      final message = 'El caso ha sido cancelado. Motivo: $reason';
+
+      await Supabase.instance.client.from('chat_messages').insert({
+        'case_id': widget.caseData['id'],
+        'sender_id': user.id,
+        'message': message,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+      // Recargar mensajes si están en la vista
+      if (mounted) {
+        _loadCaseDetails();
+      }
+    } catch (e) {
+      print('Error al enviar mensaje de cancelación: $e');
     }
   }
 }

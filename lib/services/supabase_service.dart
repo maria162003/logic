@@ -397,6 +397,7 @@ class SupabaseService {
     required String message,
     required double proposedFee,
     required int estimatedDays,
+    String? paymentMethod,
     Map<String, dynamic>? proposalDetails,
   }) async {
     final user = currentUser;
@@ -432,6 +433,7 @@ class SupabaseService {
       'message': message,
       'proposed_fee': proposedFee,
       'estimated_days': estimatedDays,
+      'payment_method': paymentMethod,
       'proposal_details': proposalDetails,
     };
     
@@ -552,6 +554,11 @@ class SupabaseService {
               proposed_fee,
               estimated_days,
               lawyer_id
+            ),
+            user_profiles!marketplace_cases_client_id_fkey(
+              full_name,
+              profile_image_url,
+              location
             )
           ''')
           .eq('proposals.lawyer_id', user.id)
@@ -592,9 +599,37 @@ class SupabaseService {
     if (user == null) throw Exception('Usuario no autenticado');
     
     try {
+      // Preparar el objeto de actualización
+      final Map<String, dynamic> updateData = {
+        'status': newStatus,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+      
+      // Si el estado es "completed" (Terminado), actualizar progreso a 100%
+      if (newStatus == 'completed') {
+        updateData['progress'] = 100;
+      }
+      // Si el estado es "assigned" (En preparación), establecer progreso a 0%
+      else if (newStatus == 'assigned') {
+        updateData['progress'] = 0;
+      }
+      // Si el estado es "active" (En trámite) y el progreso es 0 o 100, establecer a 50%
+      else if (newStatus == 'active') {
+        final currentCase = await client
+            .from('marketplace_cases')
+            .select('progress')
+            .eq('id', caseId)
+            .single();
+        
+        final currentProgress = currentCase['progress'] ?? 0;
+        if (currentProgress == 0 || currentProgress == 100) {
+          updateData['progress'] = 50;
+        }
+      }
+      
       await client
           .from('marketplace_cases')
-          .update({'status': newStatus, 'updated_at': DateTime.now().toIso8601String()})
+          .update(updateData)
           .eq('id', caseId);
       
       print('✅ SUPABASE: Estado del caso actualizado exitosamente');
@@ -906,7 +941,7 @@ class SupabaseService {
       
       final userResponse = await client
           .from('user_profiles')
-          .select('id, full_name, avatar_url, location, phone')
+          .select('id, full_name, profile_image_url, location, phone')
           .inFilter('id', lawyerIds);
       
       // Combinar los datos
@@ -968,10 +1003,10 @@ class SupabaseService {
         return null;
       }
       
-      // Obtener datos del usuario por separado
+      // Obtener datos del usuario por separado (incluyendo campos adicionales del abogado)
       final userResponse = await client
           .from('user_profiles')
-          .select('full_name, avatar_url, location, phone, email')
+          .select('full_name, profile_image_url, location, phone, email, bio, education, license_number, experience_years, hourly_rate, specializations, certifications, is_available')
           .eq('id', lawyerId)
           .maybeSingle();
       
@@ -1001,23 +1036,32 @@ class SupabaseService {
     bool? isAvailable,
   }) async {
     try {
-      final updateData = <String, dynamic>{};
-      
-      if (licenseNumber != null) updateData['license_number'] = licenseNumber;
-      if (experienceYears != null) updateData['experience_years'] = experienceYears;
-      if (education != null) updateData['education'] = education;
-      if (bio != null) updateData['bio'] = bio;
-      if (hourlyRate != null) updateData['hourly_rate'] = hourlyRate;
-      if (specializations != null) updateData['specializations'] = specializations;
-      if (certifications != null) updateData['certifications'] = certifications;
-      if (isAvailable != null) updateData['is_available'] = isAvailable;
-      
-      updateData['updated_at'] = DateTime.now().toIso8601String();
-      
+      // Actualizar timestamp en lawyer_profiles
       await client
           .from('lawyer_profiles')
-          .update(updateData)
+          .update({'updated_at': DateTime.now().toIso8601String()})
           .eq('id', lawyerId);
+      
+      // Actualizar todos los campos en user_profiles
+      final userData = <String, dynamic>{};
+      
+      if (licenseNumber != null) userData['license_number'] = licenseNumber;
+      if (experienceYears != null) userData['experience_years'] = experienceYears;
+      if (education != null) userData['education'] = education;
+      if (bio != null) userData['bio'] = bio;
+      if (hourlyRate != null) userData['hourly_rate'] = hourlyRate;
+      if (specializations != null) userData['specializations'] = specializations;
+      if (certifications != null) userData['certifications'] = certifications;
+      if (isAvailable != null) userData['is_available'] = isAvailable;
+      
+      // Si hay datos de usuario para actualizar
+      if (userData.isNotEmpty) {
+        userData['updated_at'] = DateTime.now().toIso8601String();
+        await client
+            .from('user_profiles')
+            .update(userData)
+            .eq('id', lawyerId);
+      }
       
       print('✅ SUPABASE: Perfil de abogado actualizado exitosamente');
     } catch (e) {

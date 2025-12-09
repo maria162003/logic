@@ -62,20 +62,27 @@ class _AILegalChatScreenState extends State<AILegalChatScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Column(
-        children: [
-          _buildChatHeader(),
-          Expanded(
-            child: _buildChatArea(),
-          ),
-          _buildChatInput(),
-        ],
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return Column(
+            children: [
+              _buildChatHeader(),
+              Expanded(
+                child: _buildChatArea(),
+              ),
+              _buildChatInput(),
+            ],
+          );
+        },
       ),
     );
   }
 
   Widget _buildChatHeader() {
     return Container(
+      constraints: const BoxConstraints(
+        maxHeight: 80,
+      ),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -103,6 +110,7 @@ class _AILegalChatScreenState extends State<AILegalChatScreen> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   'Asistente Legal IA',
@@ -111,6 +119,7 @@ class _AILegalChatScreenState extends State<AILegalChatScreen> {
                     fontWeight: FontWeight.w600,
                     color: Colors.grey[800],
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   'Especializado en derecho colombiano',
@@ -118,6 +127,7 @@ class _AILegalChatScreenState extends State<AILegalChatScreen> {
                     fontSize: 12,
                     color: Colors.grey[600],
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -186,10 +196,12 @@ class _AILegalChatScreenState extends State<AILegalChatScreen> {
   }
 
   Widget _buildWelcomeMessage() {
-    return Center(
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          const SizedBox(height: 40),
           Icon(
             Icons.psychology,
             size: 80,
@@ -203,6 +215,7 @@ class _AILegalChatScreenState extends State<AILegalChatScreen> {
               fontWeight: FontWeight.w600,
               color: Colors.grey[700],
             ),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
           Container(
@@ -234,6 +247,7 @@ class _AILegalChatScreenState extends State<AILegalChatScreen> {
               fontSize: 14,
               color: Colors.grey[600],
             ),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
           Text(
@@ -254,7 +268,9 @@ class _AILegalChatScreenState extends State<AILegalChatScreen> {
               color: Colors.grey[500],
               fontStyle: FontStyle.italic,
             ),
+            textAlign: TextAlign.center,
           ),
+          const SizedBox(height: 40),
         ],
       ),
     );
@@ -270,31 +286,43 @@ class _AILegalChatScreenState extends State<AILegalChatScreen> {
       'Contratos en Colombia',
     ];
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      alignment: WrapAlignment.center,
-      children: topics.map((topic) {
-        return GestureDetector(
-          onTap: () => _sendMessage(topic),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.primary.withOpacity(0.3)),
-            ),
-            child: Text(
-              topic,
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                color: AppColors.primary,
-                fontWeight: FontWeight.w500,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        maxWidth: double.infinity,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          alignment: WrapAlignment.center,
+          children: topics.map((topic) {
+            return IntrinsicWidth(
+              child: GestureDetector(
+                onTap: () => _sendMessage(topic),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                  ),
+                  child: Text(
+                    topic,
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ),
               ),
-            ),
-          ),
-        );
-      }).toList(),
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 
@@ -423,38 +451,44 @@ class _AILegalChatScreenState extends State<AILegalChatScreen> {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey[300]!),
-                borderRadius: BorderRadius.circular(25),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _chatController,
-                      decoration: InputDecoration(
-                        hintText: 'Escribe tu consulta legal...',
-                        hintStyle: GoogleFonts.poppins(color: Colors.grey[500]),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: SafeArea(
+        child: Row(
+          children: [
+            Expanded(
+              child: Container(
+                constraints: const BoxConstraints(
+                  maxHeight: 150, // Limitar altura máxima para evitar overflow
+                ),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _chatController,
+                        decoration: InputDecoration(
+                          hintText: 'Escribe tu consulta legal...',
+                          hintStyle: GoogleFonts.poppins(color: Colors.grey[500]),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                        onSubmitted: _sendMessage,
+                        maxLines: 4,
+                        minLines: 1,
                       ),
-                      onSubmitted: _sendMessage,
-                      maxLines: null,
                     ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.send, color: AppColors.primary),
-                    onPressed: () => _sendMessage(_chatController.text),
-                  ),
-                ],
+                    IconButton(
+                      icon: Icon(Icons.send, color: AppColors.primary),
+                      onPressed: () => _sendMessage(_chatController.text),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -425,7 +425,7 @@ class AuthService {
       if (fullName != null) updates['full_name'] = fullName;
       if (phone != null) updates['phone'] = phone;
       if (location != null) updates['location'] = location;
-      if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
+      if (avatarUrl != null) updates['profile_image_url'] = avatarUrl;
       updates['updated_at'] = DateTime.now().toIso8601String();
       
       await _client

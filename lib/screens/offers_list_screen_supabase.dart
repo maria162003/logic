@@ -101,16 +101,7 @@ class _OffersListScreenSupabaseState extends State<OffersListScreenSupabase> {
       appBar: AppBar(
         backgroundColor: const Color(0xFFDAA520),
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-            if (widget.onBackToDashboard != null) {
-              widget.onBackToDashboard!();
-            } else {
-              Navigator.pop(context);
-            }
-          },
-        ),
+        automaticallyImplyLeading: false,
         title: Row(
           children: [
             Image.asset(

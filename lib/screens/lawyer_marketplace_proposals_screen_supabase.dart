@@ -11,31 +11,22 @@ class LawyerMarketplaceProposalsScreen extends StatefulWidget {
   State<LawyerMarketplaceProposalsScreen> createState() => _LawyerMarketplaceProposalsScreenState();
 }
 
-class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProposalsScreen> 
-    with SingleTickerProviderStateMixin {
-  TabController? _tabController;
+class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProposalsScreen> {
   
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
   }
 
   @override
   void dispose() {
-    _tabController?.dispose();
     super.dispose();
   }
 
   Future<void> _loadData() async {
     final marketplaceProvider = Provider.of<MarketplaceProvider>(context, listen: false);
-    
-    if (_tabController?.index == 0) {
-      await marketplaceProvider.loadMarketplaceCases(refresh: true);
-    } else {
-      await marketplaceProvider.loadMyProposals(refresh: true);
-    }
+    await marketplaceProvider.loadMarketplaceCases(refresh: true);
   }
 
   @override
@@ -56,16 +47,9 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
         elevation: 0,
         centerTitle: true,
         actions: [
-          Consumer<MarketplaceProvider>(
-            builder: (context, provider, child) {
-              if (_tabController?.index == 0) {
-                return IconButton(
-                  icon: Icon(Icons.filter_list, color: AppColors.onPrimary),
-                  onPressed: () => _showFilterDialog(),
-                );
-              }
-              return const SizedBox.shrink();
-            },
+          IconButton(
+            icon: Icon(Icons.filter_list, color: AppColors.onPrimary),
+            onPressed: () => _showFilterDialog(),
           ),
         ],
       ),
@@ -75,24 +59,7 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
             return _buildLoadingScreen();
           }
 
-          if (_tabController == null) {
-            return _buildLoadingScreen();
-          }
-
-          return Column(
-            children: [
-              _buildTabBar(),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController!,
-                  children: [
-                    _buildAvailableCasesTab(marketplaceProvider),
-                    _buildMyProposalsTab(marketplaceProvider),
-                  ],
-                ),
-              ),
-            ],
-          );
+          return _buildAvailableCasesTab(marketplaceProvider);
         },
       ),
     );
@@ -116,33 +83,6 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
     );
   }
 
-  Widget _buildTabBar() {
-    if (_tabController == null) {
-      return const SizedBox.shrink();
-    }
-    
-    return Container(
-      color: AppColors.surface,
-      child: TabBar(
-        controller: _tabController!,
-        tabs: const [
-          Tab(text: 'Casos Disponibles'),
-          Tab(text: 'Mis Propuestas'),
-        ],
-        onTap: (index) {
-          _loadData();
-        },
-        indicatorColor: AppColors.primary,
-        labelColor: AppColors.primary,
-        unselectedLabelColor: Colors.white,
-        labelStyle: GoogleFonts.poppins(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
   Widget _buildAvailableCasesTab(MarketplaceProvider provider) {
     if (provider.marketplaceCases.isEmpty) {
       return _buildEmptyState(
@@ -161,29 +101,6 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
         itemBuilder: (context, index) {
           final caseData = provider.marketplaceCases[index];
           return _buildCaseCard(caseData, provider);
-        },
-      ),
-    );
-  }
-
-  Widget _buildMyProposalsTab(MarketplaceProvider provider) {
-    if (provider.myProposals.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.send,
-        title: 'No has enviado propuestas',
-        subtitle: 'Tus propuestas enviadas aparecerán aquí.',
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      color: AppColors.primary,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: provider.myProposals.length,
-        itemBuilder: (context, index) {
-          final proposalData = provider.myProposals[index];
-          return _buildProposalCard(proposalData, provider);
         },
       ),
     );
@@ -264,18 +181,33 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E3A5F).withValues(alpha: 0.1),
+                    color: _getCategoryColor(caseData['category']).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    caseData['category'] ?? 'General',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
+                    border: Border.all(
+                      color: _getCategoryColor(caseData['category']),
+                      width: 1.5,
                     ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _getCategoryIcon(caseData['category']),
+                        size: 16,
+                        color: _getCategoryColor(caseData['category']),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        caseData['category'] ?? 'General',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: _getCategoryColor(caseData['category']),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 if (caseData['location'] != null) ...[
@@ -319,10 +251,10 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
                 CircleAvatar(
                   radius: 20,
                   backgroundColor: const Color(0xFF1E3A5F),
-                  backgroundImage: client['avatar_url'] != null
-                      ? NetworkImage(client['avatar_url'])
+                  backgroundImage: client['profile_image_url'] != null
+                      ? NetworkImage(client['profile_image_url'])
                       : null,
-                  child: client['avatar_url'] == null
+                  child: client['profile_image_url'] == null
                       ? Text(
                           client['full_name']?.toString().substring(0, 1).toUpperCase() ?? 'C',
                           style: GoogleFonts.poppins(
@@ -440,310 +372,152 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
     );
   }
 
-  Widget _buildProposalCard(Map<String, dynamic> proposalData, MarketplaceProvider provider) {
-    // La nueva estructura incluye marketplace_cases como un objeto anidado
-    final caseData = proposalData['marketplace_cases'] is List 
-        ? (proposalData['marketplace_cases'] as List).isNotEmpty 
-            ? proposalData['marketplace_cases'][0] 
-            : {}
-        : proposalData['marketplace_cases'] ?? {};
-    
-    final status = proposalData['status'] ?? 'pending';
-    
-    Color statusColor;
-    String statusText;
-    IconData statusIcon;
-    
-    switch (status) {
-      case 'accepted':
-        statusColor = Colors.green;
-        statusText = 'Aceptada';
-        statusIcon = Icons.check_circle;
-        break;
-      case 'rejected':
-        statusColor = Colors.red;
-        statusText = 'Rechazada';
-        statusIcon = Icons.cancel;
-        break;
-      case 'withdrawn':
-        statusColor = Colors.grey;
-        statusText = 'Retirada';
-        statusIcon = Icons.remove_circle;
-        break;
-      default:
-        statusColor = Colors.orange;
-        statusText = 'Pendiente';
-        statusIcon = Icons.schedule;
-    }
-    
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header con título del caso y estado
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    caseData['title'] ?? 'Sin título',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: const Color.fromARGB(255, 249, 249, 249),
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: statusColor),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(statusIcon, size: 16, color: statusColor),
-                      const SizedBox(width: 4),
-                      Text(
-                        statusText,
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: statusColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 12),
-            
-            // Categoría del caso
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E3A5F).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                caseData['category'] ?? 'General',
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 12),
-            
-            // Mi propuesta
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color.fromARGB(255, 77, 76, 76),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color.fromARGB(255, 19, 19, 19)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Mi Propuesta:',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: const Color.fromARGB(255, 249, 247, 247),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    proposalData['message'] ?? 'Sin mensaje',
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      color: const Color.fromARGB(255, 247, 245, 245),
-                      height: 1.3,
-                    ),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Detalles de la propuesta
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Honorarios Propuestos',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      Text(
-                        provider.formatBudget(proposalData['proposed_fee']?.toDouble()),
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: const Color.fromARGB(255, 246, 246, 247),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Tiempo Estimado',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      Text(
-                        '${proposalData['estimated_days'] ?? 0} días',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: const Color.fromARGB(255, 251, 251, 252),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 12),
-            
-            // Footer con fecha y acción si es necesario
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                if (proposalData['created_at'] != null)
-                  Text(
-                    'Enviado ${provider.formatTimeAgo(proposalData['created_at'])}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      color: Colors.grey[500],
-                    ),
-                  ),
-                if (status == 'pending')
-                  TextButton(
-                    onPressed: () => _showWithdrawConfirmation(proposalData['id'], provider),
-                    child: Text(
-                      'Retirar',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        color: Colors.red,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _showSendProposalDialog(Map<String, dynamic> caseData, MarketplaceProvider provider) async {
     final messageController = TextEditingController();
     final feeController = TextEditingController();
     final daysController = TextEditingController();
+    String paymentMethod = 'full'; // Valor por defecto
     
     return showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Enviar Propuesta',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            color: AppColors.primary,
-          ),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: messageController,
-                decoration: InputDecoration(
-                  labelText: 'Mensaje de propuesta',
-                  labelStyle: GoogleFonts.poppins(color: Colors.white),
-                  hintText: 'Describe tu experiencia y enfoque...',
-                  border: const OutlineInputBorder(),
-                ),
-                maxLines: 4,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: feeController,
-                decoration: InputDecoration(
-                  labelText: 'Honorarios (COP)',
-                  labelStyle: GoogleFonts.poppins(color: Colors.white),
-                  hintText: '500000',
-                  border: const OutlineInputBorder(),
-                  prefixText: '\$ ',
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: daysController,
-                decoration: InputDecoration(
-                  labelText: 'Días estimados',
-                  labelStyle: GoogleFonts.poppins(color: Colors.white),
-                  hintText: '30',
-                  border: const OutlineInputBorder(),
-                  suffixText: 'días',
-                ),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancelar',
-              style: GoogleFonts.poppins(color: Colors.grey),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: Text(
+            'Enviar Propuesta',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600,
+              color: AppColors.primary,
             ),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              if (messageController.text.isEmpty ||
-                  feeController.text.isEmpty ||
-                  daysController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Por favor completa todos los campos'),
-                    backgroundColor: Colors.red,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: messageController,
+                  style: GoogleFonts.poppins(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Mensaje de propuesta',
+                    labelStyle: GoogleFonts.poppins(color: Colors.white70),
+                    hintText: 'Describe tu experiencia y enfoque...',
+                    hintStyle: GoogleFonts.poppins(color: Colors.white38),
+                    border: const OutlineInputBorder(),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.grey[700]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: AppColors.primary),
+                    ),
                   ),
-                );
-                return;
+                  maxLines: 4,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: feeController,
+                  style: GoogleFonts.poppins(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Honorarios (COP)',
+                    labelStyle: GoogleFonts.poppins(color: Colors.white70),
+                    hintText: '500000',
+                    hintStyle: GoogleFonts.poppins(color: Colors.white38),
+                    border: const OutlineInputBorder(),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.grey[700]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: AppColors.primary),
+                    ),
+                    prefixText: '\$ ',
+                    prefixStyle: GoogleFonts.poppins(color: Colors.white),
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: daysController,
+                  style: GoogleFonts.poppins(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Días estimados',
+                    labelStyle: GoogleFonts.poppins(color: Colors.white70),
+                    hintText: '30',
+                    hintStyle: GoogleFonts.poppins(color: Colors.white38),
+                    border: const OutlineInputBorder(),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.grey[700]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: AppColors.primary),
+                    ),
+                    suffixText: 'días',
+                    suffixStyle: GoogleFonts.poppins(color: Colors.white70),
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Método de pago',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildPaymentOption(
+                  value: 'full',
+                  groupValue: paymentMethod,
+                  title: 'Único pago de la totalidad de los honorarios al comienzo del proceso',
+                  onChanged: (value) => setState(() => paymentMethod = value!),
+                ),
+                const SizedBox(height: 8),
+                _buildPaymentOption(
+                  value: 'split',
+                  groupValue: paymentMethod,
+                  title: 'Dos pagos: uno para empezar y otro para la finalización del proceso',
+                  onChanged: (value) => setState(() => paymentMethod = value!),
+                ),
+                const SizedBox(height: 8),
+                _buildPaymentOption(
+                  value: 'result',
+                  groupValue: paymentMethod,
+                  title: 'Pago por resultado (Dependiendo del resultado el abogado cobra un porcentaje de la ganancia económica lograda)',
+                  onChanged: (value) => setState(() => paymentMethod = value!),
+                ),
+                const SizedBox(height: 8),
+                _buildPaymentOption(
+                  value: 'installments',
+                  groupValue: paymentMethod,
+                  title: 'Pagos divididos durante el proceso',
+                  onChanged: (value) => setState(() => paymentMethod = value!),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancelar',
+                style: GoogleFonts.poppins(color: Colors.grey),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (messageController.text.isEmpty ||
+                    feeController.text.isEmpty ||
+                    daysController.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Por favor completa todos los campos',
+                        style: GoogleFonts.poppins(),
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
               }
 
               Navigator.pop(context);
@@ -754,6 +528,7 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
                   message: messageController.text,
                   proposedFee: double.parse(feeController.text),
                   estimatedDays: int.parse(daysController.text),
+                  paymentMethod: paymentMethod,
                 );
 
                 if (context.mounted) {
@@ -763,17 +538,9 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
                         success
                             ? 'Propuesta enviada exitosamente'
                             : provider.error ?? 'Error enviando propuesta',
+                        style: GoogleFonts.poppins(),
                       ),
                       backgroundColor: success ? Colors.green : Colors.red,
-                      action: success ? SnackBarAction(
-                        label: 'Ver mis propuestas',
-                        textColor: Colors.white,
-                        onPressed: () {
-                          if (_tabController != null) {
-                            _tabController!.animateTo(1);
-                          }
-                        },
-                      ) : null,
                     ),
                   );
                 }
@@ -786,7 +553,7 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Error inesperado: $e'),
+                      content: Text('Error inesperado: $e', style: GoogleFonts.poppins()),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -802,6 +569,66 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
             ),
           ),
         ],
+      ),
+      ),
+    );
+  }
+
+  Widget _buildPaymentOption({
+    required String value,
+    required String groupValue,
+    required String title,
+    required ValueChanged<String?> onChanged,
+  }) {
+    final isSelected = value == groupValue;
+    
+    return InkWell(
+      onTap: () => onChanged(value),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : Colors.grey[700]!,
+            width: 2,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? AppColors.primary : Colors.grey[600]!,
+                  width: 2,
+                ),
+                color: isSelected ? AppColors.primary : Colors.transparent,
+              ),
+              child: isSelected
+                  ? Icon(
+                      Icons.circle,
+                      size: 12,
+                      color: AppColors.primary,
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: isSelected ? Colors.white : Colors.white70,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -928,5 +755,53 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
         ],
       ),
     );
+  }
+
+  IconData _getCategoryIcon(String? category) {
+    switch (category?.toLowerCase()) {
+      case 'penal':
+        return Icons.gavel;
+      case 'laboral':
+        return Icons.work;
+      case 'comercial':
+        return Icons.business;
+      case 'administrativo':
+        return Icons.account_balance;
+      case 'constitucional':
+        return Icons.balance;
+      case 'familiar':
+      case 'familia':
+        return Icons.family_restroom;
+      case 'civil':
+        return Icons.description;
+      case 'tributario':
+        return Icons.receipt_long;
+      default:
+        return Icons.folder;
+    }
+  }
+
+  Color _getCategoryColor(String? category) {
+    switch (category?.toLowerCase()) {
+      case 'penal':
+        return Colors.red;
+      case 'laboral':
+        return Colors.green;
+      case 'comercial':
+        return Colors.blue;
+      case 'administrativo':
+        return Colors.purple;
+      case 'constitucional':
+        return Colors.teal;
+      case 'familiar':
+      case 'familia':
+        return Colors.pink;
+      case 'civil':
+        return Colors.orange;
+      case 'tributario':
+        return Colors.amber;
+      default:
+        return AppColors.primary;
+    }
   }
 }

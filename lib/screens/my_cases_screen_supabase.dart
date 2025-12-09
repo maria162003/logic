@@ -9,6 +9,12 @@ import '../services/supabase_service.dart';
 import '../services/notification_service.dart';
 import '../utils/app_colors.dart';
 
+// Función para formatear moneda en formato colombiano
+String _formatCurrency(double amount) {
+  final formatter = NumberFormat('#,##0', 'es_CO');
+  return formatter.format(amount);
+}
+
 class MyCasesScreenSupabase extends StatefulWidget {
   const MyCasesScreenSupabase({super.key});
 
@@ -68,7 +74,7 @@ class _MyCasesScreenSupabaseState extends State<MyCasesScreenSupabase> {
     return AppBar(
       backgroundColor: AppColors.primary,
       elevation: 0,
-      iconTheme: const IconThemeData(color: Colors.black),
+      automaticallyImplyLeading: false,
       title: Text(
         'Mis Casos Legales',
         style: GoogleFonts.poppins(
@@ -629,8 +635,8 @@ class _MyCasesScreenSupabaseState extends State<MyCasesScreenSupabase> {
               ),
             ),
           
-          // Botón de chat para casos en progreso
-          if (isInProgress)
+          // Botón de chat para casos aceptados o en progreso
+          if (isInProgress || case_['status'] == 'accepted')
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
@@ -1488,10 +1494,6 @@ class _CaseChatScreenState extends State<_CaseChatScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         elevation: 0,
-        leading: IconButton(
-          onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-        ),
         title: Row(
           children: [
             // Foto de perfil del otro usuario

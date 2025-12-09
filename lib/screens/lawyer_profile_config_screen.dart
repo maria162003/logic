@@ -32,21 +32,21 @@ class _LawyerProfileConfigScreenState extends State<LawyerProfileConfigScreen> {
   bool _isAvailable = true;
   bool _isLoading = false;
 
-  // Especialidades disponibles
-  final List<String> _availableSpecializations = [
-    'Civil',
-    'Penal',
-    'Laboral',
-    'Comercial',
-    'Familiar',
-    'Tributario',
-    'Administrativo',
-    'Constitucional',
-    'Ambiental',
-    'Inmobiliario',
-    'Propiedad Intelectual',
-    'Corporativo',
-  ];
+  // Especialidades disponibles con iconos
+  final Map<String, IconData> _availableSpecializations = {
+    'Civil': Icons.account_balance,
+    'Penal': Icons.gavel,
+    'Laboral': Icons.work,
+    'Comercial': Icons.business,
+    'Familiar': Icons.family_restroom,
+    'Tributario': Icons.payment,
+    'Administrativo': Icons.admin_panel_settings,
+    'Constitucional': Icons.description,
+    'Ambiental': Icons.eco,
+    'Inmobiliario': Icons.home,
+    'Propiedad Intelectual': Icons.lightbulb,
+    'Corporativo': Icons.corporate_fare,
+  };
 
   @override
   void initState() {
@@ -72,16 +72,25 @@ class _LawyerProfileConfigScreenState extends State<LawyerProfileConfigScreen> {
         final lawyerProfile = await SupabaseService.getLawyerProfile(authProvider.userId!);
         
         if (lawyerProfile != null) {
+          // Los datos del usuario vienen en user_profiles
+          final userProfiles = lawyerProfile['user_profiles'];
+          
           setState(() {
-            _licenseNumberController.text = lawyerProfile['license_number'] ?? '';
-            _experienceController.text = lawyerProfile['experience_years']?.toString() ?? '';
-            _educationController.text = lawyerProfile['education'] ?? '';
-            _bioController.text = lawyerProfile['bio'] ?? '';
-            _hourlyRateController.text = lawyerProfile['hourly_rate']?.toString() ?? '';
-            _selectedSpecializations = List<String>.from(lawyerProfile['specializations'] ?? []);
-            _certifications = List<String>.from(lawyerProfile['certifications'] ?? []);
+            if (userProfiles != null && userProfiles is Map) {
+              _licenseNumberController.text = userProfiles['license_number'] ?? '';
+              _experienceController.text = userProfiles['experience_years']?.toString() ?? '';
+              _educationController.text = userProfiles['education'] ?? '';
+              _bioController.text = userProfiles['bio'] ?? '';
+              _hourlyRateController.text = userProfiles['hourly_rate']?.toString() ?? '';
+              _selectedSpecializations = userProfiles['specializations'] != null 
+                  ? List<String>.from(userProfiles['specializations']) 
+                  : [];
+              _certifications = userProfiles['certifications'] != null 
+                  ? List<String>.from(userProfiles['certifications']) 
+                  : [];
+              _isAvailable = userProfiles['is_available'] ?? true;
+            }
             _isVerified = lawyerProfile['is_verified'] ?? false;
-            _isAvailable = lawyerProfile['is_available'] ?? true;
           });
         }
       }
@@ -275,6 +284,81 @@ class _LawyerProfileConfigScreenState extends State<LawyerProfileConfigScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
+                        
+                        // Botón para actualizar a abogado profesional
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                AppColors.primary,
+                                AppColors.primary.withValues(alpha: 0.7),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primary.withValues(alpha: 0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () => _showProfessionalVerificationDialog(),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.workspace_premium,
+                                      color: Colors.white,
+                                      size: 28,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '¿Ya te graduaste como abogado?',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Si ya eres profesional en derecho puedes iniciar el proceso de verificación de tu tarjeta profesional y actualizar tu perfil',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 12,
+                                              color: Colors.white.withValues(alpha: 0.9),
+                                              height: 1.3,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.arrow_forward_ios,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
                       ],
                     );
                   }
@@ -420,9 +504,16 @@ class _LawyerProfileConfigScreenState extends State<LawyerProfileConfigScreen> {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: _availableSpecializations.map((spec) {
+            children: _availableSpecializations.entries.map((entry) {
+              final spec = entry.key;
+              final icon = entry.value;
               final isSelected = _selectedSpecializations.contains(spec);
               return FilterChip(
+                avatar: Icon(
+                  icon,
+                  size: 18,
+                  color: isSelected ? AppColors.onPrimary : Colors.white70,
+                ),
                 label: Text(
                   spec,
                   style: GoogleFonts.poppins(
@@ -627,6 +718,198 @@ class _LawyerProfileConfigScreenState extends State<LawyerProfileConfigScreen> {
     setState(() {
       _certifications.removeAt(index);
     });
+  }
+
+  void _showProfessionalVerificationDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: AppColors.primary.withValues(alpha: 0.3),
+              width: 2,
+            ),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                Icons.workspace_premium,
+                color: AppColors.primary,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Verificación Profesional',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Al oprimir este nuevo botón inicia el proceso de verificación para actualizar tu perfil a abogado profesional.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.white.withValues(alpha: 0.9),
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                
+                // Requisitos
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: AppColors.primary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Requisitos necesarios:',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _buildRequirement('Tarjeta profesional vigente'),
+                      _buildRequirement('Título profesional en derecho'),
+                      _buildRequirement('Documento de identidad'),
+                      _buildRequirement('Certificación del Consejo Superior de la Judicatura'),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 20),
+                
+                Text(
+                  'Una vez iniciado el proceso, recibirás instrucciones para cargar los documentos necesarios. El equipo de Logic revisará tu solicitud en un plazo de 2-3 días hábiles.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.7),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancelar',
+                style: GoogleFonts.poppins(
+                  color: Colors.grey[400],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                _startVerificationProcess();
+              },
+              icon: const Icon(Icons.check_circle_outline),
+              label: Text(
+                'Iniciar Verificación',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildRequirement(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(
+            Icons.check_circle,
+            color: Colors.green,
+            size: 16,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                color: Colors.white.withValues(alpha: 0.8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _startVerificationProcess() {
+    // Aquí se implementará la lógica para iniciar el proceso de verificación
+    // Por ahora, mostrar un mensaje de confirmación
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.send, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                '¡Proceso de verificación iniciado! Te contactaremos pronto con las instrucciones.',
+                style: GoogleFonts.poppins(fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: AppColors.success,
+        duration: const Duration(seconds: 5),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
   }
 
   void _saveProfile() async {
