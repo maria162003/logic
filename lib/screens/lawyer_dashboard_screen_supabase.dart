@@ -427,7 +427,7 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
                   'Error: ${snapshot.error}',
                   style: GoogleFonts.poppins(
                     fontSize: 12,
-                    color: Colors.white70,
+                    color: const Color.fromARGB(255, 255, 255, 255),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -501,7 +501,7 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
                             _getCaseEmptyMessage(),
                             style: GoogleFonts.poppins(
                               fontSize: 14,
-                              color: Colors.white70,
+                              color: const Color.fromARGB(253, 255, 255, 255),
                             ),
                           ),
                         ],
@@ -736,11 +736,11 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
                   ),
                 ),
                 const SizedBox(width: 8),
-                FutureBuilder<List<Map<String, dynamic>>>(
-                  future: SupabaseService.getChatMessages(case_['id']),
+                FutureBuilder<int>(
+                  future: SupabaseService.getUnreadClientMessagesCount(case_['id']),
                   builder: (context, messageSnapshot) {
-                    final messageCount = messageSnapshot.hasData
-                        ? messageSnapshot.data!.length
+                    final unreadCount = messageSnapshot.hasData
+                        ? messageSnapshot.data!
                         : 0;
                     return ElevatedButton(
                       onPressed: () => _openCaseChat(case_),
@@ -757,7 +757,7 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
                         clipBehavior: Clip.none,
                         children: [
                           const Icon(Icons.chat_bubble, size: 20),
-                          if (messageCount > 0)
+                          if (unreadCount > 0)
                             Positioned(
                               right: -8,
                               top: -8,
@@ -772,9 +772,9 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
                                   minHeight: 18,
                                 ),
                                 child: Text(
-                                  messageCount > 9
+                                  unreadCount > 9
                                       ? '9+'
-                                      : messageCount.toString(),
+                                      : unreadCount.toString(),
                                   style: GoogleFonts.poppins(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
@@ -903,19 +903,52 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
                 fontSize: 12,
               ),
             ),
-            Text(
-              '${caseData['message_count'] ?? 0} mensajes',
-              style: GoogleFonts.poppins(
-                color: AppColors.primary,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+            if (caseData['message_count'] != null && caseData['message_count'] > 0)
+              Text(
+                '${caseData['message_count']} mensaje${caseData['message_count'] > 1 ? 's' : ''} sin leer',
+                style: GoogleFonts.poppins(
+                  color: AppColors.primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
           ],
         ),
-        trailing: Icon(
-          Icons.chat,
-          color: AppColors.primary,
+        trailing: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Icon(
+              Icons.chat,
+              color: AppColors.primary,
+              size: 28,
+            ),
+            if (caseData['message_count'] != null && caseData['message_count'] > 0)
+              Positioned(
+                right: -6,
+                top: -6,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 20,
+                    minHeight: 20,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${caseData['message_count']}',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
         onTap: () => _openCaseChat(caseData),
       ),
@@ -926,16 +959,26 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
     try {
       // Obtener casos aceptados del abogado (del marketplace)
       final acceptedCases = await SupabaseService.getLawyerAcceptedCases();
+      
+      print('🔍 DEBUG: Procesando ${acceptedCases.length} casos aceptados');
 
       List<Map<String, dynamic>> casesWithMessages = [];
 
       for (var caseData in acceptedCases) {
+        print('🔍 DEBUG: Obteniendo mensajes para caso ${caseData['id']}');
+        
         // Obtener mensajes de cada caso usando el ID del caso
         final messages = await SupabaseService.getChatMessages(caseData['id']);
+        
+        // Obtener contador de mensajes no leídos del cliente
+        final unreadCount = await SupabaseService.getUnreadClientMessagesCount(caseData['id']);
+        
+        print('🔍 DEBUG: Caso ${caseData['title']} - Total mensajes: ${messages.length}, No leídos: $unreadCount');
 
         casesWithMessages.add({
           ...caseData,
-          'message_count': messages.length,
+          'message_count': unreadCount, // Usar contador de no leídos
+          'total_messages': messages.length, // Mantener total para referencia
           'last_message':
               messages.isNotEmpty ? messages.last['message'] : 'Sin mensajes',
         });
@@ -1124,7 +1167,7 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
             children: [
               Icon(
                 chipIcon,
-                color: isSelected ? chipColor : Colors.grey[500],
+                color: isSelected ? chipColor : Colors.white,
                 size: 24,
               ),
               const SizedBox(height: 6),
@@ -1133,7 +1176,7 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
                 style: GoogleFonts.poppins(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: isSelected ? chipColor : Colors.white70,
+                  color: isSelected ? chipColor : Colors.white,
                 ),
               ),
               const SizedBox(height: 2),
@@ -1142,7 +1185,7 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
                 style: GoogleFonts.poppins(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
-                  color: isSelected ? chipColor : Colors.grey[500],
+                  color: isSelected ? chipColor : Colors.white,
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 1,
@@ -1211,7 +1254,7 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
             children: [
               Icon(
                 icon,
-                color: isSelected ? chipColor : Colors.grey[500],
+                color: isSelected ? chipColor : Colors.white,
                 size: 24,
               ),
               const SizedBox(height: 6),
@@ -1220,7 +1263,7 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
                 style: GoogleFonts.poppins(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: isSelected ? chipColor : Colors.white70,
+                  color: isSelected ? chipColor : Colors.white,
                 ),
               ),
               const SizedBox(height: 2),
@@ -1229,7 +1272,7 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
                 style: GoogleFonts.poppins(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
-                  color: isSelected ? chipColor : Colors.grey[500],
+                  color: isSelected ? chipColor : Colors.white,
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 1,
@@ -1555,92 +1598,140 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
   }
 
   void _showCaseDetailsDialog(
-      Map<String, dynamic> caseData, Map<String, dynamic> proposal) {
+      Map<String, dynamic> caseData, Map<String, dynamic> proposal) async {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 500),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A1A),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.3),
-                width: 2,
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2A2A2A),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(14),
-                      topRight: Radius.circular(14),
-                    ),
+        return FutureBuilder<Map<String, String?>>(
+          future: _getClientInfo(caseData['client_id']),
+          builder: (context, snapshot) {
+            final clientName = snapshot.data?['name'];
+            final clientLocation = snapshot.data?['location'];
+
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 500),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1A1A),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.3),
+                    width: 2,
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Información del Caso',
-                          style: GoogleFonts.poppins(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2A2A2A),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(14),
+                          topRight: Radius.circular(14),
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white70),
-                        onPressed: () => Navigator.of(context).pop(),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Información del Caso',
+                              style: GoogleFonts.poppins(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white70),
+                            onPressed: () => Navigator.of(context).pop(),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-
-                // Content
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildDialogRow('Descripción:',
-                            caseData['description'] ?? 'Sin descripción'),
-                        const SizedBox(height: 16),
-                        _buildDialogRow('Tarifa Acordada:',
-                            '\$${_formatCurrency(caseData['budget']?.toDouble() ?? 0.0)}'),
-                        const SizedBox(height: 16),
-                        _buildDialogRow('Tiempo Estimado:',
-                            '${caseData['estimated_days'] ?? 0} días'),
-                        const SizedBox(height: 16),
-                        _buildDialogRow(
-                            'Fecha de Creación:',
-                            DateFormat('dd/MM/yyyy HH:mm').format(
-                                DateTime.parse(caseData['created_at']))),
-                        const SizedBox(height: 16),
-                        _buildDialogRow(
-                            'Estado:',
-                            _getStatusTextForDialog(
-                                caseData['status'] ?? 'pending')),
-                      ],
                     ),
-                  ),
+
+                    // Content
+                    Flexible(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Información del cliente
+                            if (snapshot.connectionState == ConnectionState.waiting)
+                              const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(16.0),
+                                  child: CircularProgressIndicator(),
+                                ),
+                              )
+                            else ...[
+                              if (clientName != null && clientName.isNotEmpty) ...[
+                                _buildDialogRow('Cliente:', clientName),
+                                const SizedBox(height: 16),
+                              ],
+                              if (clientLocation != null && clientLocation.isNotEmpty) ...[
+                                _buildDialogRow('Ubicación del Cliente:', clientLocation),
+                                const SizedBox(height: 16),
+                              ],
+                            ],
+                            _buildDialogRow('Descripción:',
+                                caseData['description'] ?? 'Sin descripción'),
+                            const SizedBox(height: 16),
+                            _buildDialogRow('Tarifa Acordada:',
+                                '\$${_formatCurrency(caseData['budget']?.toDouble() ?? 0.0)}'),
+                            const SizedBox(height: 16),
+                            _buildDialogRow('Tiempo Estimado:',
+                                '${caseData['estimated_days'] ?? 0} días'),
+                            const SizedBox(height: 16),
+                            _buildDialogRow(
+                                'Fecha de Creación:',
+                                DateFormat('dd/MM/yyyy HH:mm').format(
+                                    DateTime.parse(caseData['created_at']))),
+                            const SizedBox(height: 16),
+                            _buildDialogRow(
+                                'Estado:',
+                                _getStatusTextForDialog(
+                                    caseData['status'] ?? 'pending')),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
+  }
+
+  Future<Map<String, String?>> _getClientInfo(String? clientId) async {
+    if (clientId == null) {
+      return {'name': null, 'location': null};
+    }
+
+    try {
+      final response = await SupabaseService.client
+          .from('user_profiles')
+          .select('full_name, location')
+          .eq('id', clientId)
+          .single();
+
+      return {
+        'name': response['full_name'],
+        'location': response['location'],
+      };
+    } catch (e) {
+      print('❌ Error al obtener información del cliente: $e');
+      return {'name': null, 'location': null};
+    }
   }
 
   Widget _buildDialogRow(String label, String value) {
@@ -1701,21 +1792,27 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
     }
   }
 
-  void _openCaseChat(Map<String, dynamic> caseData) {
+  void _openCaseChat(Map<String, dynamic> caseData) async {
     // Usar el mismo chat screen que usan los clientes pero desde perspectiva del abogado
-    Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => _LawyerChatScreen(caseData: caseData),
       ),
     );
+    
+    // Actualizar el estado cuando regrese del chat
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _showUpdateProgressDialog(Map<String, dynamic> caseData) async {
     final currentProgress = caseData['progress'] ?? 0;
     int selectedProgress = currentProgress;
+    final messageController = TextEditingController();
 
-    final result = await showDialog<int>(
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (BuildContext context) {
         return StatefulBuilder(
@@ -1729,57 +1826,92 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Selecciona el progreso del caso:',
-                    style: GoogleFonts.poppins(
-                      color: Colors.white70,
-                      fontSize: 14,
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Selecciona el progreso del caso:',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: 100,
-                    height: 100,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        CircularProgressIndicator(
-                          value: selectedProgress / 100,
-                          strokeWidth: 8,
-                          backgroundColor: Colors.grey[800],
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            _getProgressColor(selectedProgress),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: 100,
+                      height: 100,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          CircularProgressIndicator(
+                            value: selectedProgress / 100,
+                            strokeWidth: 8,
+                            backgroundColor: Colors.grey[800],
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              _getProgressColor(selectedProgress),
+                            ),
                           ),
-                        ),
-                        Text(
-                          '$selectedProgress%',
-                          style: GoogleFonts.poppins(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: _getProgressColor(selectedProgress),
+                          Text(
+                            '$selectedProgress%',
+                            style: GoogleFonts.poppins(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: _getProgressColor(selectedProgress),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  Slider(
-                    value: selectedProgress.toDouble(),
-                    min: 0,
-                    max: 100,
-                    divisions: 20,
-                    activeColor: _getProgressColor(selectedProgress),
-                    label: '$selectedProgress%',
-                    onChanged: (value) {
-                      setState(() {
-                        selectedProgress = value.toInt();
-                      });
-                    },
-                  ),
-                ],
+                    const SizedBox(height: 20),
+                    Slider(
+                      value: selectedProgress.toDouble(),
+                      min: 0,
+                      max: 100,
+                      divisions: 20,
+                      activeColor: _getProgressColor(selectedProgress),
+                      label: '$selectedProgress%',
+                      onChanged: (value) {
+                        setState(() {
+                          selectedProgress = value.toInt();
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Por favor, detalla los avances realizados:',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: messageController,
+                      style: GoogleFonts.poppins(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Describe los avances del caso...',
+                        hintStyle: GoogleFonts.poppins(color: Colors.white38),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey[700]!),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey[700]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: AppColors.primary),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[900],
+                      ),
+                      maxLines: 4,
+                      maxLength: 500,
+                    ),
+                  ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -1790,7 +1922,24 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: () => Navigator.pop(context, selectedProgress),
+                  onPressed: () {
+                    if (messageController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Por favor describe los avances realizados',
+                            style: GoogleFonts.poppins(),
+                          ),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                      return;
+                    }
+                    Navigator.pop(context, {
+                      'progress': selectedProgress,
+                      'message': messageController.text.trim(),
+                    });
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                   ),
@@ -1806,23 +1955,36 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
       },
     );
 
-    if (result != null && result != currentProgress) {
-      await _updateCaseProgress(caseData['id'], result);
+    if (result != null && result['progress'] != currentProgress) {
+      await _updateCaseProgress(
+        caseData['id'], 
+        result['progress'], 
+        result['message'],
+      );
     }
   }
 
-  Future<void> _updateCaseProgress(String caseId, int progress) async {
+  Future<void> _updateCaseProgress(String caseId, int progress, String message) async {
     try {
+      // Actualizar el progreso en la base de datos
       await SupabaseService.client
           .from('marketplace_cases')
           .update({'progress': progress}).eq('id', caseId);
+
+      // Enviar el mensaje al chat con el cliente
+      final messageWithProgress = '📊 *Actualización de progreso ($progress%)*\n\n$message';
+      await SupabaseService.sendChatMessage(
+        caseId: caseId,
+        message: messageWithProgress,
+        senderType: 'lawyer',
+      );
 
       if (mounted) {
         setState(() {}); // Refrescar la vista
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Progreso actualizado a $progress%',
+              'Progreso actualizado a $progress% y mensaje enviado al cliente',
               style: GoogleFonts.poppins(),
             ),
             backgroundColor: Colors.green,
@@ -2011,6 +2173,16 @@ class _LawyerChatScreenState extends State<_LawyerChatScreen> {
   void initState() {
     super.initState();
     _loadClientInfo();
+    _markMessagesAsRead();
+  }
+
+  Future<void> _markMessagesAsRead() async {
+    // Marcar mensajes del cliente como leídos cuando el abogado abre el chat
+    try {
+      await SupabaseService.markMessagesAsRead(widget.caseData['id']);
+    } catch (e) {
+      print('Error al marcar mensajes como leídos: $e');
+    }
   }
 
   Future<void> _loadClientInfo() async {

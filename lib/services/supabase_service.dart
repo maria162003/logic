@@ -524,7 +524,8 @@ class SupabaseService {
               budget,
               location,
               status,
-              created_at
+              created_at,
+              client_id
             )
           ''')
           .eq('lawyer_id', user.id)
@@ -1400,6 +1401,32 @@ class SupabaseService {
       print('✅ SUPABASE: Mensajes marcados como leídos');
     } catch (e) {
       print('❌ SUPABASE ERROR al marcar mensajes como leídos: $e');
+    }
+  }
+
+  // Obtener contador de mensajes no leídos del cliente para el abogado
+  static Future<int> getUnreadClientMessagesCount(String caseId) async {
+    final user = currentUser;
+    if (user == null) return 0;
+
+    try {
+      final response = await client
+          .from('chat_messages')
+          .select('*')
+          .eq('case_id', caseId)
+          .eq('sender_type', 'client') // Solo mensajes del cliente
+          .neq('sender_id', user.id); // No enviados por el usuario actual
+
+      // Filtrar los no leídos en código (is_read es false o null)
+      final unreadMessages = response.where((msg) => 
+        msg['is_read'] == false || msg['is_read'] == null
+      ).toList();
+
+      print('✅ SUPABASE: Mensajes no leídos del cliente - ${unreadMessages.length} de ${response.length} total');
+      return unreadMessages.length;
+    } catch (e) {
+      print('❌ SUPABASE ERROR al obtener mensajes no leídos: $e');
+      return 0;
     }
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/marketplace_provider.dart';
@@ -47,10 +48,19 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
         elevation: 0,
         centerTitle: true,
         actions: [
-          IconButton(
+          TextButton.icon(
             icon: Icon(Icons.filter_list, color: AppColors.onPrimary),
+            label: Text(
+              'Filtro',
+              style: GoogleFonts.poppins(
+                color: AppColors.onPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
             onPressed: () => _showFilterDialog(),
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Consumer<MarketplaceProvider>(
@@ -420,7 +430,7 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
                   decoration: InputDecoration(
                     labelText: 'Honorarios (COP)',
                     labelStyle: GoogleFonts.poppins(color: Colors.white70),
-                    hintText: '500000',
+                    hintText: '500.000',
                     hintStyle: GoogleFonts.poppins(color: Colors.white38),
                     border: const OutlineInputBorder(),
                     enabledBorder: OutlineInputBorder(
@@ -433,6 +443,10 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
                     prefixStyle: GoogleFonts.poppins(color: Colors.white),
                   ),
                   keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    _ThousandsSeparatorInputFormatter(),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -523,10 +537,12 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
               Navigator.pop(context);
 
               try {
+                // Remover puntos del formato de miles antes de parsear
+                final feeValue = feeController.text.replaceAll('.', '');
                 final success = await provider.sendProposal(
                   caseId: caseData['id'],
                   message: messageController.text,
-                  proposedFee: double.parse(feeController.text),
+                  proposedFee: double.parse(feeValue),
                   estimatedDays: int.parse(daysController.text),
                   paymentMethod: paymentMethod,
                 );
@@ -699,7 +715,7 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
           'Filtrar Casos',
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.w600,
-            color: const Color(0xFF1E3A5F),
+            color: const Color.fromARGB(255, 251, 251, 252),
           ),
         ),
         content: Column(
@@ -749,7 +765,7 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Aplicar',
-              style: GoogleFonts.poppins(color: const Color(0xFF1E3A5F)),
+              style: GoogleFonts.poppins(color: const Color.fromARGB(255, 253, 253, 253)),
             ),
           ),
         ],
@@ -803,5 +819,41 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
       default:
         return AppColors.primary;
     }
+  }
+}
+
+// Formateador personalizado para separadores de miles
+class _ThousandsSeparatorInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+
+    // Remover cualquier formato existente
+    final numericValue = newValue.text.replaceAll('.', '');
+
+    // Formatear con puntos como separadores de miles
+    final formatter = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
+    final formattedValue = numericValue.replaceAllMapped(
+      formatter,
+      (Match match) => '${match[1]}.',
+    );
+
+    // Calcular la nueva posición del cursor
+    final oldSelectionOffset = oldValue.selection.baseOffset;
+    final oldDotsBeforeCursor = '.'.allMatches(oldValue.text.substring(0, oldSelectionOffset)).length;
+    final newDotsBeforeCursor = '.'.allMatches(formattedValue.substring(0, numericValue.length.clamp(0, formattedValue.length))).length;
+    final cursorOffset = newValue.selection.baseOffset + (newDotsBeforeCursor - oldDotsBeforeCursor);
+
+    return TextEditingValue(
+      text: formattedValue,
+      selection: TextSelection.collapsed(
+        offset: cursorOffset.clamp(0, formattedValue.length),
+      ),
+    );
   }
 }
