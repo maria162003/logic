@@ -1,54 +1,47 @@
-<!-- Use this file to provide workspace-specific custom instructions to Copilot. For more details, visit https://code.visualstudio.com/docs/copilot/copilot-customization#_use-a-githubcopilotinstructionsmd-file -->
-- [x] Verify that the copilot-instructions.md file in the .github directory is created. ✅ Completed
+# Logic Lex - Copilot Instructions
 
-- [x] Clarify Project Requirements ✅ Flutter mobile app for Play Store
-	<!-- Ask for project type, language, and frameworks if not specified. Skip if already provided. -->
+## Proyecto
+Aplicación Flutter para servicios legales con Supabase como backend.
 
-- [x] Scaffold the Project ✅ Flutter project structure created manually
-	<!--
-	Ensure that the previous step has been marked as completed.
-	Call project setup tool with projectType parameter.
-	Run scaffolding command to create project files and folders.
-	Use '.' as the working directory.
-	If no appropriate projectType is available, search documentation using available tools.
-	Otherwise, create the project structure manually using available file creation tools.
-	-->
+## Estructura del Proyecto
 
-- [x] Customize the Project ✅ Basic Flutter app with Provider, screens, widgets, and services
-	<!--
-	Verify that all previous steps have been completed successfully and you have marked the step as completed.
-	Develop a plan to modify codebase according to user requirements.
-	Apply modifications using appropriate tools and user-provided references.
-	Skip this step for "Hello World" projects.
-	-->
+### Roles de Usuario
+- **Cliente**: Publica casos legales, solicita trámites jurídicos, recibe propuestas
+- **Abogado**: Ve casos disponibles, envía propuestas, gestiona clientes
+- **Estudiante**: Ve trámites jurídicos, envía propuestas para desarrollar documentos
 
-- [x] Install Required Extensions ✅ Flutter and Dart extensions already installed
-	<!-- ONLY install extensions provided mentioned in the get_project_setup_info. Skip this step otherwise and mark as completed. -->
+### Base de Datos (Supabase)
+- `user_profiles`: Perfiles de usuarios
+- `legal_cases`: Casos legales publicados
+- `case_proposals`: Propuestas de abogados
+- `lawyer_profiles`: Perfiles de abogados
+- `legal_procedures`: Trámites jurídicos para estudiantes
+- `procedure_proposals`: Propuestas de estudiantes
+- `procedure_messages`: Mensajes de trámites
+- `procedure_deliverables`: Entregables de trámites
+- `student_verifications`: Verificación de estudiantes
 
-- [x] Compile the Project ✅ Project structure ready (Flutter SDK required for compilation)
-	<!--
-	Verify that all previous steps have been completed.
-	Install any missing dependencies.
-	Run diagnostics and resolve any issues.
-	Check for markdown files in project folder for relevant instructions on how to do this.
-	-->
+### Servicios Principales
+- `supabase_connection_service.dart`: Conexión a Supabase
+- `case_service.dart`: Gestión de casos legales
+- `legal_procedures_service.dart`: Gestión de trámites jurídicos
+- `ai_chat_service.dart`: Chat con IA legal
 
-- [x] Create and Run Task ✅ No task needed (use 'flutter run' command)
-	<!--
-	Verify that all previous steps have been completed.
-	Check https://code.visualstudio.com/docs/debugtest/tasks to determine if the project needs a task. If so, use the create_and_run_task to create and launch a task based on package.json, README.md, and project structure.
-	Skip this step otherwise.
-	 -->
+### Pantallas Clave
+- `home_screen_supabase.dart`: Dashboard del cliente
+- `lawyer_dashboard_screen.dart`: Dashboard del abogado
+- `tramites_juridicos_screen.dart`: Crear trámites jurídicos
+- `mis_tramites_screen.dart`: Ver trámites del cliente
+- `my_cases_screen_supabase.dart`: Ver casos del cliente
 
-- [x] Launch the Project ✅ Ready to launch (requires Flutter SDK installation)
-	<!--
-	Verify that all previous steps have been completed.
-	Prompt user for debug mode, launch only if confirmed.
-	 -->
+## Comandos
+- `flutter run -d chrome`: Ejecutar en web
+- `flutter run`: Ejecutar en dispositivo/emulador
+- `flutter pub get`: Instalar dependencias
 
-- [x] Ensure Documentation is Complete ✅ README.md created with complete instructions
-	<!--
-	Verify that all previous steps have been completed.
-	Verify that README.md and the copilot-instructions.md file in the .github directory exists and contains current project information.
-	Clean up the copilot-instructions.md file in the .github directory by removing all HTML comments.
-	 -->
+## Estado del Proyecto
+✅ Sistema de casos legales completo
+✅ Sistema de propuestas de abogados
+✅ Chat con IA legal
+✅ Sistema de trámites jurídicos para estudiantes
+✅ Formularios dinámicos por tipo de derecho

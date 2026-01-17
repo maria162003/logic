@@ -1,13 +1,14 @@
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class GeminiService {
-  static const String _apiKey = 'AIzaSyCklRzYjE6wHJaytJe3qo8UXuOKLcoRzdI';
+  static String get _apiKey => dotenv.env['GEMINI_API_KEY'] ?? '';
   late GenerativeModel _model;
   late ChatSession _chatSession;
-  String _currentModel = 'gemini-2.5-flash';
+  String _currentModel = 'gemini-2.0-flash';
 
   GeminiService() {
-    _initializeModel('gemini-2.5-flash');
+    _initializeModel('gemini-2.0-flash');
   }
 
   void _initializeModel(String modelName) {
@@ -16,10 +17,10 @@ class GeminiService {
       model: modelName,
       apiKey: _apiKey,
       generationConfig: GenerationConfig(
-        temperature: 0.7,
+        temperature: 0.6,
         topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 1024,
+        topP: 0.9,
+        maxOutputTokens: 600, // Respuestas más cortas
       ),
     );
     _initializeChatSession();
@@ -32,8 +33,6 @@ class GeminiService {
   // Método para probar múltiples modelos automáticamente
   Future<String> _testModelAndRespond(String message) async {
     final modelsToTry = [
-      'gemini-2.5-flash',
-      'gemini-2.5-pro',
       'gemini-2.0-flash',
       'gemini-1.5-flash',
       'gemini-1.5-pro',
@@ -49,85 +48,123 @@ class GeminiService {
         final result = response.text ?? 'Lo siento, no pude procesar tu consulta.';
 
         print('✅ Modelo $model funcionó correctamente');
-        return result;
+        return _cleanResponse(result);
       } catch (e) {
         print('❌ Modelo $model falló: $e');
         continue;
       }
     }
 
-    return 'Lo siento, hay un problema temporal con el servicio de IA. '
-        'Por favor intenta más tarde o contacta directamente a un abogado.';
+    return 'Lo siento, hay un problema temporal. Por favor intenta más tarde.';
+  }
+
+  /// Limpia la respuesta de caracteres extraños y formato Markdown
+  String _cleanResponse(String text) {
+    String cleaned = text;
+    
+    // Remover markdown de negrita y cursiva
+    cleaned = cleaned.replaceAll(RegExp(r'\*\*([^\*]+)\*\*'), r'$1');
+    cleaned = cleaned.replaceAll(RegExp(r'\*([^\*]+)\*'), r'$1');
+    cleaned = cleaned.replaceAll(RegExp(r'__([^_]+)__'), r'$1');
+    cleaned = cleaned.replaceAll(RegExp(r'_([^_]+)_'), r'$1');
+    
+    // Remover headers markdown
+    cleaned = cleaned.replaceAll(RegExp(r'^#{1,6}\s+', multiLine: true), '');
+    
+    // Remover backticks de código
+    cleaned = cleaned.replaceAll(RegExp(r'```[a-z]*\n?'), '');
+    cleaned = cleaned.replaceAll('`', '');
+    
+    // Remover viñetas markdown y convertir a formato limpio
+    cleaned = cleaned.replaceAll(RegExp(r'^\s*[-•]\s+', multiLine: true), '• ');
+    
+    // Limpiar numeración excesiva (1. 2. etc) y mantener formato simple
+    cleaned = cleaned.replaceAll(RegExp(r'^\s*\d+\.\s+', multiLine: true), '→ ');
+    
+    // Remover líneas vacías múltiples
+    cleaned = cleaned.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+    
+    // Remover espacios al inicio y final
+    cleaned = cleaned.trim();
+    
+    return cleaned;
   }
 
   void _initializeChatSession() {
     _chatSession = _model.startChat(history: [
-      Content.text(
-        'Eres un asistente legal para Colombia. Responde de manera profesional y clara.'
-      ),
+      Content.text('''
+Eres el asistente legal de Logic Lex para Colombia. REGLAS ESTRICTAS:
+
+1. RESPUESTAS CORTAS: Máximo 3-4 párrafos. Sé conciso y directo.
+2. LENGUAJE SIMPLE: Usa español sencillo, evita tecnicismos. Si usas uno, explícalo brevemente.
+3. SIN FORMATO ESPECIAL: No uses asteriscos, guiones bajos, hashtags ni markdown.
+4. ESTRUCTURA CLARA: Usa viñetas simples (•) y flechas (→) para pasos.
+5. SIEMPRE termina con: "Te recomiendo consultar con un abogado para tu caso específico."
+
+Eres amigable, empático y profesional. Responde como si hablaras con un amigo que necesita ayuda legal.
+'''),
     ]);
   }
 
   Future<String> sendMessage(String message) async {
-    // Primero intentar con el modelo actual
     try {
       print('🤖 Gemini: Enviando mensaje con modelo: $_currentModel');
-      print('🤖 Gemini: API Key configurada: ${_apiKey.substring(0, 10)}...');
+
+      final enhancedMessage = '''
+Responde de forma BREVE y SIMPLE a esta consulta:
+
+"$message"
+
+Recuerda: máximo 3-4 párrafos, sin formato markdown, lenguaje sencillo.
+''';
 
       final response = await _chatSession.sendMessage(
-        Content.text(message),
+        Content.text(enhancedMessage),
       );
 
       final result = response.text ?? 'Lo siento, no pude procesar tu consulta.';
-      print('🤖 Gemini: Respuesta recibida exitosamente con $_currentModel');
-      return result;
+      print('🤖 Gemini: Respuesta recibida exitosamente');
+      return _cleanResponse(result);
     } catch (e) {
       print('❌ Error con modelo $_currentModel: $e');
-      print('🔄 Probando con otros modelos...');
-
-      // Si falla, probar automáticamente con otros modelos
       return await _testModelAndRespond(message);
     }
   }
 
   Future<String> getLegalAdvice(String legalArea, String question) async {
     final prompt = '''
-    Como asistente legal especializado en $legalArea, responde a la siguiente consulta:
-    
-    Pregunta: $question
-    
-    Por favor proporciona:
-    1. Una explicación clara del tema legal
-    2. Los pasos generales que se suelen seguir
-    3. Documentos que podrían necesitarse
-    4. Recomendación de consultar con un abogado especializado
-    
-    Recuerda que esta es información general educativa, no consejo legal específico.
-    ''';
+Como asistente de $legalArea, responde BREVEMENTE:
+
+Pregunta: $question
+
+Da una respuesta corta y práctica (máximo 4 párrafos):
+• Explica el tema en términos simples
+• Menciona los pasos principales
+• Indica qué documentos podrían necesitarse
+• Recomienda consultar un abogado
+
+SIN formato markdown. Lenguaje sencillo y directo.
+''';
 
     try {
       final response = await _model.generateContent([Content.text(prompt)]);
-      return response.text ?? 'No pude generar una respuesta adecuada.';
+      return _cleanResponse(response.text ?? 'No pude generar una respuesta.');
     } catch (e) {
       print('Error en consulta legal: $e');
-      return 'Error al procesar la consulta legal. Intenta nuevamente.';
+      return 'Error al procesar la consulta. Intenta nuevamente.';
     }
   }
 
   Future<String> explainLegalTerm(String term) async {
     final prompt = '''
-    Explica de manera clara y sencilla el término legal: "$term"
-    
-    Incluye:
-    - Definición en términos simples
-    - Contexto donde se usa
-    - Ejemplo práctico si es posible
-    - Relevancia en el derecho colombiano
-    ''';
+Explica en 2-3 oraciones simples qué significa "$term" en el contexto legal colombiano.
+
+Sin formato markdown. Como si le explicaras a un amigo.
+''';
 
     try {
       final response = await _model.generateContent([Content.text(prompt)]);
-      return response.text ?? 'No pude explicar ese término.';
+      return _cleanResponse(response.text ?? 'No pude explicar ese término.');
     } catch (e) {
       print('Error explicando término: $e');
       return 'Error al explicar el término legal.';
@@ -136,22 +173,21 @@ class GeminiService {
 
   Future<String> analyzeDocument(String documentType, String content) async {
     final prompt = '''
-    Analiza el siguiente documento de tipo "$documentType":
-    
-    $content
-    
-    Proporciona:
-    1. Un resumen del contenido
-    2. Puntos importantes a considerar
-    3. Posibles riesgos o beneficios
-    4. Recomendaciones generales
-    
-    Nota: Este es un análisis informativo, no constituye asesoría legal.
-    ''';
+Analiza brevemente este documento de tipo "$documentType":
+
+$content
+
+En máximo 3 párrafos:
+• Resumen del contenido
+• Puntos importantes
+• Una recomendación
+
+Sin formato markdown.
+''';
 
     try {
       final response = await _model.generateContent([Content.text(prompt)]);
-      return response.text ?? 'No pude analizar el documento.';
+      return _cleanResponse(response.text ?? 'No pude analizar el documento.');
     } catch (e) {
       print('Error analizando documento: $e');
       return 'Error al analizar el documento.';
@@ -160,23 +196,49 @@ class GeminiService {
 
   Future<List<String>> getSuggestedQuestions(String legalArea) async {
     final prompt = '''
-    Genera 5 preguntas frecuentes sobre $legalArea que los usuarios suelen hacer.
-    Devuelve solo las preguntas, una por línea, sin numeración.
-    ''';
+Dame 5 preguntas cortas y comunes sobre $legalArea.
+Solo las preguntas, una por línea, sin números ni viñetas.
+''';
 
     try {
       final response = await _model.generateContent([Content.text(prompt)]);
       final text = response.text ?? '';
-      return text.split('\n').where((line) => line.trim().isNotEmpty).toList();
+      return text.split('\n').where((line) => line.trim().isNotEmpty).take(5).toList();
     } catch (e) {
-      print('Error generando sugerencias: $e');
       return [
-        '¿Cuáles son mis derechos en esta situación?',
-        '¿Qué documentos necesito para este trámite?',
-        '¿Cuánto tiempo toma este proceso legal?',
-        '¿Cuáles son los costos asociados?',
+        '¿Cuáles son mis derechos?',
+        '¿Qué documentos necesito?',
+        '¿Cuánto tiempo toma?',
+        '¿Cuáles son los costos?',
         '¿Qué pasos debo seguir?'
       ];
+    }
+  }
+
+  /// Método especial para el asistente de la app
+  Future<String> getAppAssistance(String question, String currentScreen) async {
+    final prompt = '''
+Eres el asistente de ayuda de Logic Lex. El usuario está en: "$currentScreen"
+
+Pregunta del usuario: "$question"
+
+FUNCIONES DE LA APP:
+• Publicar caso legal: Describe tu situación y recibe propuestas de abogados
+• Buscar abogados: Encuentra abogados por especialidad y ubicación
+• Chat con IA: Consultas legales básicas (donde estamos ahora)
+• Trámites jurídicos: Solicita ayuda de estudiantes de derecho verificados
+• Mis casos: Ve el estado de tus casos publicados
+• Configuración: Ajusta tu perfil y preferencias
+
+Responde en 2-3 oraciones cómo puede hacer lo que pregunta. Si necesita ir a otra pantalla, dile cuál.
+Sé muy breve y directo. Sin formato markdown.
+''';
+
+    try {
+      final response = await _model.generateContent([Content.text(prompt)]);
+      return _cleanResponse(response.text ?? 'No pude entender tu pregunta. ¿Puedes reformularla?');
+    } catch (e) {
+      return 'Lo siento, tuve un problema. Intenta preguntarme de otra forma.';
     }
   }
 

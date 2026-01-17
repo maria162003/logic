@@ -6,6 +6,8 @@ import '../widgets/connection_status_badge.dart';
 import 'lawyer_search_screen_supabase.dart';
 import 'ai_legal_chat_screen.dart';
 import 'legal_forms_screen.dart';
+import 'tramites_juridicos_screen.dart';
+import 'mis_tramites_screen.dart';
 import 'form_screens/civil_form_screen.dart';
 import 'form_screens/penal_form_screen.dart';
 import 'form_screens/laboral_form_screen.dart';
@@ -47,6 +49,7 @@ class _HomeScreenSupabaseState extends State<HomeScreenSupabase> {
               _buildHeader(),
               _buildStatsSection(),
               _buildAILegalChatCard(),
+              _buildTramitesJuridicosCard(),
               _buildLegalFormsSection(),
               _buildSearchSection(),
               const SizedBox(height: 20),
@@ -295,8 +298,8 @@ class _HomeScreenSupabaseState extends State<HomeScreenSupabase> {
                           'Toca para comenzar →',
                           style: GoogleFonts.poppins(
                             fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.onPrimary.withOpacity(0.8),
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.onPrimary,
                           ),
                         ),
                       ],
@@ -316,6 +319,130 @@ class _HomeScreenSupabaseState extends State<HomeScreenSupabase> {
       context,
       MaterialPageRoute(
         builder: (context) => const AILegalChatScreen(),
+      ),
+    );
+  }
+
+  Widget _buildTramitesJuridicosCard() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      child: Card(
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                // Ícono de estudiante con birrete - arriba a la izquierda
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.school,
+                        color: Colors.black87,
+                        size: 28,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Texto centrado
+                Text(
+                  'Trámites jurídicos',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Dale la oportunidad a un estudiante de derecho para poder desarrollar sus habilidades profesionales.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                    height: 1.4,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                // Botones
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const MisTramitesScreen(),
+                            ),
+                          );
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Colors.grey[400]!),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(
+                          'Ver mis trámites',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const TramitesJuridicosScreen(),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(
+                          'Nuevo trámite',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -389,8 +516,8 @@ class _HomeScreenSupabaseState extends State<HomeScreenSupabase> {
           Text(
             'Publica tu Caso',
             style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
               color: AppColors.primary,
             ),
           ),
@@ -400,7 +527,7 @@ class _HomeScreenSupabaseState extends State<HomeScreenSupabase> {
             style: GoogleFonts.poppins(
               fontSize: 14,
               fontWeight: FontWeight.w400,
-              color: AppColors.primary.withOpacity(0.7),
+              color: Colors.white,
             ),
           ),
           const SizedBox(height: 12),

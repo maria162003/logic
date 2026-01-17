@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'config/supabase_config.dart';
 import 'services/notification_service.dart';
 import 'screens/splash_screen.dart';
@@ -21,6 +22,9 @@ import 'screens/test_chat_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Cargar variables de entorno
+  await dotenv.load(fileName: '.env');
   
   // Inicializar Supabase
   await SupabaseConfig.initialize();

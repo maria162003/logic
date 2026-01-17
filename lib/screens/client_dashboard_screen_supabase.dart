@@ -382,7 +382,8 @@ class _NotificationsPanelState extends State<_NotificationsPanel> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _proposals = [];
   List<Map<String, dynamic>> _unreadMessages = [];
-  String _selectedTab = 'all'; // 'all', 'offers', 'messages'
+  List<Map<String, dynamic>> _caseUpdates = [];
+  String _selectedTab = 'all'; // 'all', 'offers', 'messages', 'updates'
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -407,11 +408,14 @@ class _NotificationsPanelState extends State<_NotificationsPanel> {
       // Cargar propuestas pendientes
       final proposals = await SupabaseService.getClientProposals();
       
-      // Cargar mensajes no leídos por caso
+      // Cargar casos del cliente
       final cases = await SupabaseService.getClientCases();
       List<Map<String, dynamic>> unreadMessages = [];
+      List<Map<String, dynamic>> caseUpdates = [];
       
+      // Procesar cada caso
       for (var caseData in cases) {
+        // Obtener mensajes no leídos
         final messages = await SupabaseService.getChatMessages(caseData['id']);
         final unread = messages.where((msg) => 
           msg['sender_id'] != currentUser.id && 
@@ -425,12 +429,30 @@ class _NotificationsPanelState extends State<_NotificationsPanel> {
             'case_id': caseData['id'],
           });
         }
+
+        // Detectar actualizaciones recientes en casos (últimas 48 horas)
+        final updatedAt = DateTime.parse(caseData['updated_at']);
+        final now = DateTime.now();
+        final hoursSinceUpdate = now.difference(updatedAt).inHours;
+        
+        if (hoursSinceUpdate < 48 && caseData['status'] != 'active') {
+          caseUpdates.add({
+            'type': 'case_update',
+            'case_id': caseData['id'],
+            'case_title': caseData['title'],
+            'status': caseData['status'],
+            'progress': caseData['progress'],
+            'updated_at': caseData['updated_at'],
+            'description': _getCaseUpdateDescription(caseData),
+          });
+        }
       }
 
       if (mounted) {
         setState(() {
           _proposals = proposals.where((p) => p['status'] == 'pending').toList();
           _unreadMessages = unreadMessages;
+          _caseUpdates = caseUpdates;
           _isLoading = false;
         });
       }
@@ -439,6 +461,22 @@ class _NotificationsPanelState extends State<_NotificationsPanel> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  String _getCaseUpdateDescription(Map<String, dynamic> caseData) {
+    final status = caseData['status'];
+    switch (status) {
+      case 'assigned':
+        return 'Tu caso ha sido asignado a un abogado';
+      case 'in_progress':
+        return 'Tu caso está en progreso';
+      case 'completed':
+        return 'Tu caso ha sido completado';
+      case 'cancelled':
+        return 'Tu caso ha sido cancelado';
+      default:
+        return 'Tu caso ha sido actualizado';
     }
   }
 
@@ -469,7 +507,7 @@ class _NotificationsPanelState extends State<_NotificationsPanel> {
   }
 
   Widget _buildHeader() {
-    final totalNotifications = _proposals.length + _unreadMessages.length;
+    final totalNotifications = _proposals.length + _unreadMessages.length + _caseUpdates.length;
     
     return Container(
       padding: const EdgeInsets.all(20),
@@ -566,6 +604,7 @@ class _NotificationsPanelState extends State<_NotificationsPanel> {
         setState(() {
           _proposals.clear();
           _unreadMessages.clear();
+          _caseUpdates.clear();
         });
       }
     } catch (e) {
@@ -575,14 +614,14 @@ class _NotificationsPanelState extends State<_NotificationsPanel> {
 
   Widget _buildTabBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _buildTabButton('all', 'Todas', _proposals.length + _unreadMessages.length),
-          const SizedBox(width: 12),
+          _buildTabButton('all', 'Todas', _proposals.length + _unreadMessages.length + _caseUpdates.length),
           _buildTabButton('offers', 'Ofertas', _proposals.length),
-          const SizedBox(width: 12),
           _buildTabButton('messages', 'Mensajes', _unreadMessages.length),
+          _buildTabButton('updates', 'Casos', _caseUpdates.length),
         ],
       ),
     );
@@ -591,11 +630,15 @@ class _NotificationsPanelState extends State<_NotificationsPanel> {
   Widget _buildTabButton(String tabId, String label, int count) {
     final isSelected = _selectedTab == tabId;
     
-    return Expanded(
+    return Flexible(
       child: GestureDetector(
-        onTap: () => setState(() => _selectedTab = tabId),
+        onTap: () {
+          if (mounted) {
+            setState(() => _selectedTab = tabId);
+          }
+        },
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
           decoration: BoxDecoration(
             color: isSelected ? const Color(0xFFBB8B30) : const Color(0xFF252630),
             borderRadius: BorderRadius.circular(12),
@@ -609,15 +652,16 @@ class _NotificationsPanelState extends State<_NotificationsPanel> {
               Text(
                 label,
                 style: GoogleFonts.poppins(
-                  fontSize: 13,
+                  fontSize: 11,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   color: isSelected ? Colors.white : Colors.grey.shade400,
                 ),
+                textAlign: TextAlign.center,
               ),
               if (count > 0) ...[
                 const SizedBox(height: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: isSelected ? Colors.white.withOpacity(0.2) : Colors.red,
                     borderRadius: BorderRadius.circular(10),
@@ -625,7 +669,7 @@ class _NotificationsPanelState extends State<_NotificationsPanel> {
                   child: Text(
                     count.toString(),
                     style: GoogleFonts.poppins(
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
@@ -648,6 +692,10 @@ class _NotificationsPanelState extends State<_NotificationsPanel> {
 
     if (_selectedTab == 'all' || _selectedTab == 'messages') {
       notifications.addAll(_unreadMessages.map((msg) => _buildMessageNotification(msg)));
+    }
+
+    if (_selectedTab == 'all' || _selectedTab == 'updates') {
+      notifications.addAll(_caseUpdates.map((update) => _buildCaseUpdateNotification(update)));
     }
 
     if (notifications.isEmpty) {
@@ -891,6 +939,160 @@ class _NotificationsPanelState extends State<_NotificationsPanel> {
                   const SizedBox(height: 4),
                   Text(
                     messageText.length > 60 ? '${messageText.substring(0, 60)}...' : messageText,
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: Colors.grey.shade400,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.access_time, size: 12, color: Colors.grey.shade600),
+                      const SizedBox(width: 4),
+                      Text(
+                        timeAgo,
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right,
+              color: Colors.grey,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCaseUpdateNotification(Map<String, dynamic> update) {
+    final updatedAt = DateTime.parse(update['updated_at']);
+    final timeAgo = _formatTimeAgo(updatedAt);
+    final caseTitle = update['case_title'] ?? 'Caso';
+    final description = update['description'] ?? 'Tu caso ha sido actualizado';
+    final status = update['status'];
+    
+    // Definir color e ícono según el estado
+    Color statusColor;
+    IconData statusIcon;
+    
+    switch (status) {
+      case 'assigned':
+        statusColor = Colors.green;
+        statusIcon = Icons.person_add;
+        break;
+      case 'in_progress':
+        statusColor = Colors.orange;
+        statusIcon = Icons.work;
+        break;
+      case 'completed':
+        statusColor = Colors.purple;
+        statusIcon = Icons.check_circle;
+        break;
+      case 'cancelled':
+        statusColor = Colors.red;
+        statusIcon = Icons.cancel;
+        break;
+      default:
+        statusColor = Colors.grey;
+        statusIcon = Icons.info;
+    }
+
+    return InkWell(
+      onTap: () => widget.onNotificationTap('message'), // Ir a Mis Casos
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF252630),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: statusColor.withOpacity(0.3), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: statusColor.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                statusIcon,
+                color: statusColor,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Actualización de Caso',
+                          style: GoogleFonts.poppins(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: statusColor,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          status.toUpperCase(),
+                          style: GoogleFonts.poppins(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.folder, size: 12, color: Colors.grey.shade500),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          caseTitle,
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.grey.shade500,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
                     style: GoogleFonts.poppins(
                       fontSize: 13,
                       color: Colors.grey.shade400,

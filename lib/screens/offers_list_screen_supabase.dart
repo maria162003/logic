@@ -259,6 +259,7 @@ class _OffersListScreenSupabaseState extends State<OffersListScreenSupabase> {
                               style: GoogleFonts.poppins(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
+                                color: Colors.white,
                               ),
                             ),
                             subtitle: Text(
@@ -269,6 +270,8 @@ class _OffersListScreenSupabaseState extends State<OffersListScreenSupabase> {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
+                            iconColor: Colors.white,
+                            collapsedIconColor: Colors.white,
                             children: [
                               Padding(
                                 padding: const EdgeInsets.all(16.0),
@@ -280,30 +283,35 @@ class _OffersListScreenSupabaseState extends State<OffersListScreenSupabase> {
                                       style: GoogleFonts.poppins(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 15,
+                                        color: Colors.white,
                                       ),
                                     ),
                                     const SizedBox(height: 8),
                                     Container(
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
-                                        color: Colors.grey[100],
+                                        color: const Color(0xFF2A2A2A),
                                         borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: Colors.grey[700]!),
                                       ),
                                       child: Text(
                                         offer['message'] ?? 'Sin mensaje',
-                                        style: GoogleFonts.poppins(fontSize: 14),
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 14,
+                                          color: Colors.white70,
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(height: 16),
                                     Row(
                                       children: [
-                                        Icon(Icons.access_time, size: 20, color: Colors.grey[700]),
+                                        Icon(Icons.access_time, size: 20, color: Colors.grey[400]),
                                         const SizedBox(width: 8),
                                         Text(
                                           'Tiempo estimado: ${offer['estimated_days'] ?? 0} días',
                                           style: GoogleFonts.poppins(
                                             fontSize: 14,
-                                            color: Colors.grey[700],
+                                            color: Colors.grey[400],
                                           ),
                                         ),
                                       ],

@@ -49,6 +49,9 @@ dependencies:
   # Video playback for splash screen
   video_player: ^2.9.1
 
+  # Environment variables
+  flutter_dotenv: ^5.1.0
+
   # Google Gemini
   google_generative_ai: ^0.4.3
   
@@ -67,6 +70,7 @@ flutter:
   
   # Assets
   assets:
+    - .env
     - assets/images/
     - assets/fonts/
     - assets/videos/

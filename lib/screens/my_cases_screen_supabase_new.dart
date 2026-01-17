@@ -96,6 +96,22 @@ class _MyCasesScreenSupabaseState extends State<MyCasesScreenSupabase> {
 
     final filteredCases = _getFilteredCases(provider.myCases);
 
+    // Si hay casos totales pero ninguno para el filtro actual
+    if (filteredCases.isEmpty && provider.myCases.isNotEmpty && _selectedFilter != 'Todos') {
+      return Column(
+        children: [
+          _buildStatsCard(provider.myCases),
+          _buildFilterChips(),
+          Expanded(
+            child: Container(
+              color: Colors.black.withOpacity(0.6),
+              child: _buildEmptyFilterState(),
+            ),
+          ),
+        ],
+      );
+    }
+
     if (filteredCases.isEmpty) {
       return _buildEmptyState();
     }
@@ -235,102 +251,121 @@ class _MyCasesScreenSupabaseState extends State<MyCasesScreenSupabase> {
     );
   }
 
+  Widget _buildEmptyFilterState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _getAreaIcon(_selectedFilter),
+              size: 50,
+              color: AppColors.primary.withOpacity(0.6),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No hay casos para $_selectedFilter',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'No tienes casos en esta categoría',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                color: Colors.grey[400],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  _selectedFilter = 'Todos';
+                });
+              },
+              icon: const Icon(Icons.clear_all, size: 16),
+              label: const Text('Ver todos'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildStatsCard(List<Map<String, dynamic>> cases) {
-    final Map<String, int> statusCount = {};
-    final Map<String, int> typeCount = {};
+    final totalCases = cases.length;
     
-    for (final case_ in cases) {
-      final status = case_['status'] ?? 'Sin estado';
-      final type = case_['case_type'] ?? case_['category'] ?? 'Sin categoría';
-      
-      statusCount[status] = (statusCount[status] ?? 0) + 1;
-      typeCount[type] = (typeCount[type] ?? 0) + 1;
-    }
+    // Activos: assigned, active
+    final activeCases = cases.where((c) {
+      final status = c['status']?.toLowerCase();
+      return status == 'assigned' || status == 'active';
+    }).length;
+    
+    // Pendientes: open, pending
+    final pendingCases = cases.where((c) {
+      final status = c['status']?.toLowerCase();
+      return status == 'open' || status == 'pending';
+    }).length;
+    
+    // Completados: completed, cancelled
+    final completedCases = cases.where((c) {
+      final status = c['status']?.toLowerCase();
+      return status == 'completed' || status == 'cancelled';
+    }).length;
 
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.3),
-          width: 1,
-        ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          AppColors.goldShadow,
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            spreadRadius: 0,
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          Row(
-            children: [
-              Icon(
-                Icons.analytics_outlined,
-                color: AppColors.primary,
-                size: 24,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Resumen de Casos',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatItem(
-                  'Total',
-                  cases.length.toString(),
-                  Icons.folder,
-                ),
-              ),
-              Expanded(
-                child: _buildStatItem(
-                  'Activos',
-                  (statusCount['active'] ?? statusCount['abierto'] ?? 0).toString(),
-                  Icons.play_circle_filled,
-                ),
-              ),
-              Expanded(
-                child: _buildStatItem(
-                  'Áreas',
-                  typeCount.keys.length.toString(),
-                  Icons.category,
-                ),
-              ),
-            ],
-          ),
+          _buildStatItem('Total', totalCases.toString(), AppColors.primary),
+          _buildStatItem('Activos', activeCases.toString(), Colors.green),
+          _buildStatItem('Pendientes', pendingCases.toString(), Colors.orange),
+          _buildStatItem('Completados', completedCases.toString(), Colors.blue),
         ],
       ),
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon) {
+  Widget _buildStatItem(String label, String value, Color color) {
     return Column(
       children: [
-        Icon(icon, color: AppColors.primary, size: 20),
-        const SizedBox(height: 4),
         Text(
           value,
           style: GoogleFonts.poppins(
-            fontSize: 18,
+            fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: AppColors.primary,
+            color: color,
           ),
         ),
         Text(
           label,
           style: GoogleFonts.poppins(
             fontSize: 12,
-            color: Colors.white70,
+            color: Colors.grey[600],
           ),
         ),
       ],
