@@ -8,6 +8,7 @@ import 'lawyer_schedule_config_screen.dart';
 import 'lawyer_notification_config_screen.dart';
 import 'lawyer_pricing_config_screen.dart';
 import 'lawyer_privacy_config_screen.dart';
+import 'lawyer_share_profile_screen.dart';
 
 class LawyerConfigurationScreen extends StatelessWidget {
   const LawyerConfigurationScreen({super.key});
@@ -96,6 +97,17 @@ class LawyerConfigurationScreen extends StatelessWidget {
                   Icons.security,
                   AppColors.error,
                   () => _navigateToScreen(context, const LawyerPrivacyConfigScreen()),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                _buildConfigSection(
+                  context,
+                  'Compartir Perfil',
+                  'Código QR y enlace de perfil',
+                  Icons.share,
+                  const Color(0xFF00BCD4),
+                  () => _navigateToScreen(context, const LawyerShareProfileScreen()),
                 ),
                 
                 const SizedBox(height: 30),

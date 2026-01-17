@@ -180,6 +180,7 @@ class MarketplaceProvider extends ChangeNotifier {
     required String message,
     required double proposedFee,
     required int estimatedDays,
+    String? paymentMethod,
     Map<String, dynamic>? proposalDetails,
   }) async {
     _setLoading(true);
@@ -191,12 +192,14 @@ class MarketplaceProvider extends ChangeNotifier {
       print('💬 Message: $message');
       print('💰 Fee: $proposedFee');
       print('📅 Days: $estimatedDays');
+      print('💳 Payment Method: $paymentMethod');
       
       await SupabaseService.sendProposal(
         caseId: caseId,
         message: message,
         proposedFee: proposedFee,
         estimatedDays: estimatedDays,
+        paymentMethod: paymentMethod,
         proposalDetails: proposalDetails,
       );
       

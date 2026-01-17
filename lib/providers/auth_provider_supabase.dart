@@ -21,7 +21,7 @@ class AuthProvider extends ChangeNotifier {
   String? get userType => _userProfile?['user_type'];
   String? get userLocation => _userProfile?['location'];
   String? get userPhone => _userProfile?['phone'];
-  String? get userAvatar => _userProfile?['avatar_url'];
+  String? get userAvatar => _userProfile?['profile_image_url'];
   
   // Verificaciones de tipo
   bool get isLawyer => userType == 'lawyer';

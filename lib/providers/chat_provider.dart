@@ -7,60 +7,28 @@ class ChatProvider with ChangeNotifier {
   final List<ChatMessage> _messages = [];
   bool _isLoading = false;
   LegalArea? _selectedArea;
-  bool _isAppHelpMode = false; // Modo de ayuda de la app
 
-  /// Limpieza exhaustiva de formato Markdown y caracteres extraños
+  // Función para limpiar formato Markdown de los mensajes
   String _cleanMarkdownFormatting(String text) {
-    String cleaned = text;
-    
-    // Remover negrita (**texto** o *texto*)
-    cleaned = cleaned.replaceAll(RegExp(r'\*\*([^\*]+)\*\*'), r'$1');
+    // Remover asteriscos de negrita (**texto** o *texto*)
+    String cleaned = text.replaceAll(RegExp(r'\*\*([^\*]+)\*\*'), r'$1');
     cleaned = cleaned.replaceAll(RegExp(r'\*([^\*]+)\*'), r'$1');
-    
-    // Remover itálica (__texto__ o _texto_)
+    // Remover guiones bajos de itálica (__texto__ o _texto_)
     cleaned = cleaned.replaceAll(RegExp(r'__([^_]+)__'), r'$1');
-    cleaned = cleaned.replaceAll(RegExp(r'(?<![a-zA-Z])_([^_]+)_(?![a-zA-Z])'), r'$1');
-    
-    // Remover headers markdown (# ## ### etc)
-    cleaned = cleaned.replaceAll(RegExp(r'^#{1,6}\s+', multiLine: true), '');
-    
-    // Remover código inline y bloques de código
-    cleaned = cleaned.replaceAll(RegExp(r'```[a-z]*\n?'), '');
-    cleaned = cleaned.replaceAll(RegExp(r'`([^`]+)`'), r'$1');
-    
-    // Convertir listas markdown a viñetas simples
-    cleaned = cleaned.replaceAll(RegExp(r'^\s*[-•]\s+', multiLine: true), '• ');
-    cleaned = cleaned.replaceAll(RegExp(r'^\s*\d+\.\s+', multiLine: true), '→ ');
-    
-    // Remover links markdown [texto](url)
-    cleaned = cleaned.replaceAll(RegExp(r'\[([^\]]+)\]\([^\)]+\)'), r'$1');
-    
-    // Limpiar múltiples líneas vacías
-    cleaned = cleaned.replaceAll(RegExp(r'\n{3,}'), '\n\n');
-    
-    // Remover caracteres de control extraños
-    cleaned = cleaned.replaceAll(RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]'), '');
-    
-    return cleaned.trim();
+    cleaned = cleaned.replaceAll(RegExp(r'_([^_]+)_'), r'$1');
+    return cleaned;
   }
 
   List<ChatMessage> get messages => List.unmodifiable(_messages);
   bool get isLoading => _isLoading;
   LegalArea? get selectedArea => _selectedArea;
-  bool get isAppHelpMode => _isAppHelpMode;
 
   void setSelectedArea(LegalArea? area) {
     _selectedArea = area;
     notifyListeners();
   }
 
-  /// Activa/desactiva el modo de ayuda de la app
-  void setAppHelpMode(bool enabled) {
-    _isAppHelpMode = enabled;
-    notifyListeners();
-  }
-
-  Future<void> sendMessage(String content, {String currentScreen = 'Chat IA'}) async {
+  Future<void> sendMessage(String content) async {
     if (content.trim().isEmpty) return;
 
     // Agregar mensaje del usuario
@@ -77,11 +45,8 @@ class ChatProvider with ChangeNotifier {
     try {
       String response;
 
-      // Determinar el tipo de consulta
-      if (_isAppHelpMode) {
-        // Modo ayuda de la app
-        response = await _geminiService.getAppAssistance(content, currentScreen);
-      } else if (_selectedArea != null) {
+      // Determinar el tipo de consulta y usar el método apropiado
+      if (_selectedArea != null) {
         response = await _geminiService.getLegalAdvice(_selectedArea!.name, content);
       } else {
         response = await _geminiService.sendMessage(content);
