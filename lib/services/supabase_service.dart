@@ -420,6 +420,7 @@ class SupabaseService {
     required String message,
     required double proposedFee,
     required int estimatedDays,
+    String? paymentMethod,
     Map<String, dynamic>? proposalDetails,
   }) async {
     final user = currentUser;
@@ -455,6 +456,7 @@ class SupabaseService {
       'message': message,
       'proposed_fee': proposedFee,
       'estimated_days': estimatedDays,
+      'payment_method': paymentMethod,
       'proposal_details': proposalDetails,
     };
 
@@ -1354,6 +1356,26 @@ class SupabaseService {
     } catch (e) {
       print('❌ SUPABASE ERROR en changePassword: $e');
       throw Exception('Error al cambiar contraseña: $e');
+    }
+  }
+
+  // Obtener conteo de mensajes no leídos del cliente
+  static Future<int> getUnreadClientMessagesCount(String caseId) async {
+    try {
+      final user = currentUser;
+      if (user == null) return 0;
+
+      final response = await client
+          .from('chat_messages')
+          .select('id')
+          .eq('case_id', caseId)
+          .eq('is_read', false)
+          .neq('sender_id', user.id);
+
+      return response.length;
+    } catch (e) {
+      print('❌ Error obteniendo mensajes no leídos: $e');
+      return 0;
     }
   }
 }

@@ -6,7 +6,9 @@ import '../utils/app_images.dart';
 import '../utils/app_colors.dart';
 
 class OffersListScreenSupabase extends StatefulWidget {
-  const OffersListScreenSupabase({super.key});
+  final VoidCallback? onBackToDashboard;
+  
+  const OffersListScreenSupabase({super.key, this.onBackToDashboard});
 
   @override
   State<OffersListScreenSupabase> createState() => _OffersListScreenSupabaseState();
