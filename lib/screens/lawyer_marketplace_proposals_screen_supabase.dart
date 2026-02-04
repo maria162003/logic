@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/marketplace_provider.dart';
+import '../providers/auth_provider_supabase.dart';
 import '../utils/app_colors.dart';
 
 class LawyerMarketplaceProposalsScreen extends StatefulWidget {
@@ -27,51 +28,50 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
 
   Future<void> _loadData() async {
     final marketplaceProvider = Provider.of<MarketplaceProvider>(context, listen: false);
-    await marketplaceProvider.loadMarketplaceCases(refresh: true);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    await marketplaceProvider.loadMarketplaceCases(refresh: true, isStudent: authProvider.isStudent);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        title: Text(
-          'Legalmarket',
-          style: GoogleFonts.poppins(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: AppColors.onPrimary,
-          ),
-        ),
-        backgroundColor: AppColors.primary,
-        elevation: 0,
-        centerTitle: true,
-        actions: [
-          TextButton.icon(
-            icon: Icon(Icons.filter_list, color: AppColors.onPrimary),
-            label: Text(
-              'Filtro',
+    return Consumer2<MarketplaceProvider, AuthProvider>(
+      builder: (context, marketplaceProvider, authProvider, child) {
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          resizeToAvoidBottomInset: false,
+          appBar: AppBar(
+            title: Text(
+              authProvider.isStudent ? 'Trámites Jurídicos' : 'Legalmarket',
               style: GoogleFonts.poppins(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
                 color: AppColors.onPrimary,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
               ),
             ),
-            onPressed: () => _showFilterDialog(),
+            backgroundColor: AppColors.primary,
+            elevation: 0,
+            centerTitle: true,
+            actions: [
+              TextButton.icon(
+                icon: Icon(Icons.filter_list, color: AppColors.onPrimary),
+                label: Text(
+                  'Filtro',
+                  style: GoogleFonts.poppins(
+                    color: AppColors.onPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                onPressed: () => _showFilterDialog(),
+              ),
+              const SizedBox(width: 8),
+            ],
           ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: Consumer<MarketplaceProvider>(
-        builder: (context, marketplaceProvider, child) {
-          if (marketplaceProvider.isLoading) {
-            return _buildLoadingScreen();
-          }
-
-          return _buildAvailableCasesTab(marketplaceProvider);
-        },
-      ),
+          body: marketplaceProvider.isLoading
+              ? _buildLoadingScreen()
+              : _buildAvailableCasesTab(marketplaceProvider),
+        );
+      },
     );
   }
 
@@ -162,27 +162,44 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
 
   Widget _buildCaseCard(Map<String, dynamic> caseData, MarketplaceProvider provider) {
     final hasProposal = provider.hasProposalForCase(caseData['id']);
-    final client = {}; // Temporalmente sin datos del cliente
+    final client = caseData['user_profiles'] ?? {}; // Obtener datos del cliente desde la relación
+    final canSubmit = provider.canSubmitProposal(caseData) && !hasProposal;
+    final currentCount = provider.getCurrentProposalsCount(caseData);
+    final maxSlots = provider.getMaxProposals(caseData);
+    final caseStatus = provider.getCaseStatus(caseData);
     
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: _getStatusBorderColor(caseStatus),
+          width: 1.5,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header con título
-            Text(
-              caseData['title'] ?? 'Sin título',
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
+            // Header con título y badge de estado
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    caseData['title'] ?? 'Sin título',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _buildStatusBadge(caseStatus, currentCount, maxSlots),
+              ],
             ),
             
             const SizedBox(height: 12),
@@ -335,32 +352,41 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: Colors.green),
                         ),
-                        child: Text(
-                          'Propuesta Enviada',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.green,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Propuesta Enviada',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.green,
+                              ),
+                            ),
+                          ],
                         ),
                       )
                     : ElevatedButton.icon(
-                        onPressed: () => _showSendProposalDialog(caseData, provider),
+                        onPressed: canSubmit ? () => _showSendProposalDialog(caseData, provider) : null,
                         icon: const Icon(Icons.send, size: 16),
                         label: Text(
-                          'Enviar Propuesta',
+                          _getButtonLabel(caseStatus),
                           style: GoogleFonts.poppins(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
+                          backgroundColor: canSubmit ? AppColors.primary : Colors.grey[700],
+                          foregroundColor: canSubmit ? Colors.white : Colors.grey[500],
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
+                          disabledBackgroundColor: Colors.grey[800],
+                          disabledForegroundColor: Colors.grey[600],
                         ),
                       ),
               ],
@@ -707,6 +733,7 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
 
   Future<void> _showFilterDialog() async {
     final provider = Provider.of<MarketplaceProvider>(context, listen: false);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
     
     return showDialog(
       context: context,
@@ -721,25 +748,28 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            DropdownButtonFormField<String>(
-              value: provider.selectedCategory,
-              decoration: const InputDecoration(
-                labelText: 'Categoría',
-                border: OutlineInputBorder(),
+            // Solo mostrar filtro de categoría si NO es estudiante
+            if (!authProvider.isStudent) ...[
+              DropdownButtonFormField<String>(
+                value: provider.selectedCategory,
+                decoration: const InputDecoration(
+                  labelText: 'Categoría',
+                  border: OutlineInputBorder(),
+                ),
+                items: MarketplaceProvider.categories.map((category) {
+                  return DropdownMenuItem(
+                    value: category,
+                    child: Text(category),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    provider.filterCases(category: value, isStudent: authProvider.isStudent);
+                  }
+                },
               ),
-              items: MarketplaceProvider.categories.map((category) {
-                return DropdownMenuItem(
-                  value: category,
-                  child: Text(category),
-                );
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  provider.filterCases(category: value);
-                }
-              },
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
+            ],
             DropdownButtonFormField<String>(
               value: provider.selectedLocation,
               decoration: const InputDecoration(
@@ -754,7 +784,7 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
               }).toList(),
               onChanged: (value) {
                 if (value != null) {
-                  provider.filterCases(location: value);
+                  provider.filterCases(location: value, isStudent: authProvider.isStudent);
                 }
               },
             ),
@@ -818,6 +848,93 @@ class _LawyerMarketplaceProposalsScreenState extends State<LawyerMarketplaceProp
         return Colors.amber;
       default:
         return AppColors.primary;
+    }
+  }
+  
+  // Método para construir el badge de estado
+  Widget _buildStatusBadge(CaseAvailabilityStatus status, int currentCount, int max) {
+    Color badgeColor;
+    IconData icon;
+    String text;
+    
+    switch (status) {
+      case CaseAvailabilityStatus.open:
+        badgeColor = Colors.green;
+        icon = Icons.check_circle;
+        text = '$currentCount/$max propuestas';
+        break;
+      case CaseAvailabilityStatus.almostFull:
+        badgeColor = Colors.orange;
+        icon = Icons.warning_amber_rounded;
+        text = '$currentCount/$max propuestas';
+        break;
+      case CaseAvailabilityStatus.full:
+        badgeColor = Colors.red;
+        icon = Icons.block;
+        text = 'Lleno ($currentCount/$max)';
+        break;
+      case CaseAvailabilityStatus.closed:
+        badgeColor = Colors.grey;
+        icon = Icons.lock;
+        text = 'Cerrado';
+        break;
+      case CaseAvailabilityStatus.expired:
+        badgeColor = Colors.grey[700]!;
+        icon = Icons.schedule;
+        text = 'Expirado';
+        break;
+    }
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: badgeColor.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: badgeColor, width: 1.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: badgeColor),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: GoogleFonts.poppins(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: badgeColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Color _getStatusBorderColor(CaseAvailabilityStatus status) {
+    switch (status) {
+      case CaseAvailabilityStatus.open:
+        return Colors.green.withValues(alpha: 0.3);
+      case CaseAvailabilityStatus.almostFull:
+        return Colors.orange.withValues(alpha: 0.3);
+      case CaseAvailabilityStatus.full:
+        return Colors.red.withValues(alpha: 0.3);
+      case CaseAvailabilityStatus.closed:
+        return Colors.grey.withValues(alpha: 0.3);
+      case CaseAvailabilityStatus.expired:
+        return Colors.grey.withValues(alpha: 0.2);
+    }
+  }
+  
+  String _getButtonLabel(CaseAvailabilityStatus status) {
+    switch (status) {
+      case CaseAvailabilityStatus.full:
+        return 'Cupo Lleno';
+      case CaseAvailabilityStatus.closed:
+        return 'Caso Cerrado';
+      case CaseAvailabilityStatus.expired:
+        return 'Caso Expirado';
+      default:
+        return 'Enviar Propuesta';
     }
   }
 }

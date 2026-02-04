@@ -581,22 +581,76 @@ class _MyCasesScreenSupabaseState extends State<MyCasesScreenSupabase> {
                     ),
                   ],
                 ),
+                
+                // Mostrar progreso y estado si está en progreso
+                if (isInProgress) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(case_['status']).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: _getStatusColor(case_['status']).withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              // Indicador de progreso
+                              SizedBox(
+                                width: 40,
+                                height: 40,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    CircularProgressIndicator(
+                                      value: (case_['progress'] ?? 0) / 100,
+                                      strokeWidth: 3,
+                                      backgroundColor: Colors.grey[300],
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        _getProgressColor(case_['progress'] ?? 0),
+                                      ),
+                                    ),
+                                    Text(
+                                      '${case_['progress'] ?? 0}%',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        color: _getProgressColor(case_['progress'] ?? 0),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              // Estado del caso
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: _getStatusColor(case_['status']),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  _getStatusText(case_['status']),
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
-            ),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: _getStatusColor(case_['status']),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                _getStatusText(case_['status']),
-                style: GoogleFonts.poppins(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
             ),
             onTap: () {
               _showCaseDetails(case_);
@@ -796,6 +850,18 @@ class _MyCasesScreenSupabaseState extends State<MyCasesScreenSupabase> {
       return '${formatter.format(amount)} COP';
     } catch (e) {
       return 'Por negociar';
+    }
+  }
+
+  Color _getProgressColor(int progress) {
+    if (progress < 25) {
+      return Colors.red;
+    } else if (progress < 50) {
+      return Colors.orange;
+    } else if (progress < 75) {
+      return Colors.blue;
+    } else {
+      return Colors.green;
     }
   }
 

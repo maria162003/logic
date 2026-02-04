@@ -356,23 +356,31 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
       return const SizedBox.shrink();
     }
 
-    return Container(
-      color: AppColors.surface,
-      child: TabBar(
-        controller: _tabController!,
-        labelColor: AppColors.primary,
-        unselectedLabelColor: Colors.white,
-        indicatorColor: AppColors.primary,
-        labelStyle: GoogleFonts.poppins(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-        tabs: const [
-          Tab(text: 'Legalmarket'),
-          Tab(text: 'Mis Casos'),
-          Tab(text: 'Mis Propuestas'),
-        ],
-      ),
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        return Container(
+          color: AppColors.surface,
+          child: TabBar(
+            controller: _tabController!,
+            labelColor: AppColors.primary,
+            unselectedLabelColor: Colors.white,
+            indicatorColor: AppColors.primary,
+            labelStyle: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+            unselectedLabelStyle: GoogleFonts.poppins(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+            ),
+            tabs: [
+              Tab(text: authProvider.isStudent ? 'Trámites Jurídicos' : 'Legalmarket'),
+              const Tab(text: 'Mis Casos'),
+              const Tab(text: 'Mis Propuestas'),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -568,24 +576,6 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
           children: [
             Row(
               children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'EN PREPARACIÓN',
-                    style: GoogleFonts.poppins(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.green,
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                const Spacer(),
                 Text(
                   formattedDate,
                   style: GoogleFonts.poppins(
@@ -677,10 +667,24 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
                   ),
                 ),
                 const Spacer(),
-                // Indicador de progreso circular con botón para actualizar
-                GestureDetector(
-                  onTap: () => _showUpdateProgressDialog(case_),
-                  child: SizedBox(
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Fila de progreso y estado
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _getStatusColorByStatus(case_['status']).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: _getStatusColorByStatus(case_['status']).withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  // Indicador de progreso circular
+                  SizedBox(
                     width: 50,
                     height: 50,
                     child: Stack(
@@ -705,8 +709,35 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
                       ],
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  // Estado del caso
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _getStatusColorByStatus(case_['status']),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      _getStatusTextForCard(case_['status']),
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  // Botón para actualizar progreso
+                  IconButton(
+                    icon: Icon(
+                      Icons.edit,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
+                    onPressed: () => _showUpdateProgressDialog(case_),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 12),
             // Botones de Ver Detalles y Chat
@@ -1027,39 +1058,30 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
               color: AppColors.surface,
               child: Row(
                 children: [
-                  Expanded(
-                    child:
-                        _buildFilterChip('Todos', 'all', allProposals.length),
+                  _buildFilterChip('Todos', 'all', allProposals.length),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
+                    'Aceptadas',
+                    'accepted',
+                    allProposals
+                        .where((p) => p['status'] == 'accepted')
+                        .length,
                   ),
                   const SizedBox(width: 8),
-                  Expanded(
-                    child: _buildFilterChip(
-                      'Aceptadas',
-                      'accepted',
-                      allProposals
-                          .where((p) => p['status'] == 'accepted')
-                          .length,
-                    ),
+                  _buildFilterChip(
+                    'Pendientes',
+                    'pending',
+                    allProposals
+                        .where((p) => p['status'] == 'pending')
+                        .length,
                   ),
                   const SizedBox(width: 8),
-                  Expanded(
-                    child: _buildFilterChip(
-                      'Pendientes',
-                      'pending',
-                      allProposals
-                          .where((p) => p['status'] == 'pending')
-                          .length,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _buildFilterChip(
-                      'Rechazadas',
-                      'rejected',
-                      allProposals
-                          .where((p) => p['status'] == 'rejected')
-                          .length,
-                    ),
+                  _buildFilterChip(
+                    'Rechazadas',
+                    'rejected',
+                    allProposals
+                        .where((p) => p['status'] == 'rejected')
+                        .length,
                   ),
                 ],
               ),
@@ -1671,33 +1693,177 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
                                 ),
                               )
                             else ...[
+                              // Cliente
                               if (clientName != null && clientName.isNotEmpty) ...[
-                                _buildDialogRow('Cliente:', clientName),
-                                const SizedBox(height: 16),
-                              ],
-                              if (clientLocation != null && clientLocation.isNotEmpty) ...[
-                                _buildDialogRow('Ubicación del Cliente:', clientLocation),
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: AppColors.primary.withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary,
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: const Icon(
+                                          Icons.person,
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Cliente',
+                                              style: GoogleFonts.poppins(
+                                                fontSize: 12,
+                                                color: AppColors.primary,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              clientName,
+                                              style: GoogleFonts.poppins(
+                                                fontSize: 15,
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            if (clientLocation != null && clientLocation.isNotEmpty) ...[
+                                              const SizedBox(height: 4),
+                                              Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.location_on,
+                                                    size: 14,
+                                                    color: Colors.white70,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    clientLocation,
+                                                    style: GoogleFonts.poppins(
+                                                      fontSize: 12,
+                                                      color: Colors.white70,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                                 const SizedBox(height: 16),
                               ],
                             ],
-                            _buildDialogRow('Descripción:',
-                                caseData['description'] ?? 'Sin descripción'),
+                            
+                            // Área Legal
+                            if (caseData['category'] != null) ...[
+                              _buildInfoCard(
+                                icon: Icons.gavel,
+                                iconColor: _getCategoryColor(caseData['category']),
+                                title: 'Área Legal',
+                                content: caseData['category'],
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                            
+                            // Descripción
+                            _buildInfoCard(
+                              icon: Icons.description,
+                              iconColor: Colors.blue,
+                              title: 'Descripción',
+                              content: caseData['description'] ?? 'Sin descripción',
+                              isMultiline: true,
+                            ),
                             const SizedBox(height: 16),
-                            _buildDialogRow('Tarifa Acordada:',
-                                '\$${_formatCurrency(caseData['budget']?.toDouble() ?? 0.0)}'),
+                            
+                            // Mensaje de Propuesta
+                            if (proposal['message'] != null && proposal['message'].toString().isNotEmpty) ...[
+                              _buildInfoCard(
+                                icon: Icons.message,
+                                iconColor: Colors.purple,
+                                title: 'Mensaje de Propuesta',
+                                content: proposal['message'],
+                                isMultiline: true,
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                            
+                            // Honorarios y Tiempo
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildInfoCard(
+                                    icon: Icons.attach_money,
+                                    iconColor: Colors.green,
+                                    title: 'Honorarios',
+                                    content: '\$${_formatCurrency(proposal['proposed_fee']?.toDouble() ?? caseData['budget']?.toDouble() ?? 0.0)} COP',
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildInfoCard(
+                                    icon: Icons.access_time,
+                                    iconColor: Colors.orange,
+                                    title: 'Tiempo Estimado',
+                                    content: '${proposal['estimated_days'] ?? caseData['estimated_days'] ?? 0} días',
+                                  ),
+                                ),
+                              ],
+                            ),
                             const SizedBox(height: 16),
-                            _buildDialogRow('Tiempo Estimado:',
-                                '${caseData['estimated_days'] ?? 0} días'),
-                            const SizedBox(height: 16),
-                            _buildDialogRow(
-                                'Fecha de Creación:',
-                                DateFormat('dd/MM/yyyy HH:mm').format(
-                                    DateTime.parse(caseData['created_at']))),
-                            const SizedBox(height: 16),
-                            _buildDialogRow(
-                                'Estado:',
-                                _getStatusTextForDialog(
-                                    caseData['status'] ?? 'pending')),
+                            
+                            // Método de Pago
+                            if (proposal['payment_method'] != null) ...[
+                              _buildInfoCard(
+                                icon: Icons.payment,
+                                iconColor: Colors.teal,
+                                title: 'Método de Pago',
+                                content: _getPaymentMethodText(proposal['payment_method']),
+                                isMultiline: true,
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                            
+                            // Fecha de Creación y Estado
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildInfoCard(
+                                    icon: Icons.calendar_today,
+                                    iconColor: Colors.cyan,
+                                    title: 'Fecha de Creación',
+                                    content: DateFormat('dd/MM/yyyy HH:mm').format(
+                                        DateTime.parse(caseData['created_at'])),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildInfoCard(
+                                    icon: Icons.info_outline,
+                                    iconColor: _getStatusColorByStatus(caseData['status']),
+                                    title: 'Estado',
+                                    content: _getStatusTextForDialog(
+                                        caseData['status'] ?? 'pending'),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
@@ -1771,6 +1937,114 @@ class _LawyerDashboardScreenState extends State<LawyerDashboardScreen>
         return 'Cancelado';
       default:
         return 'Desconocido';
+    }
+  }
+
+  String _getStatusTextForCard(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'assigned':
+        return 'En Preparación';
+      case 'active':
+        return 'En Trámite';
+      case 'completed':
+        return 'Completado';
+      case 'cancelled':
+        return 'Cancelado';
+      default:
+        return 'Desconocido';
+    }
+  }
+
+  Color _getStatusColorByStatus(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'assigned':
+        return Colors.green;
+      case 'active':
+        return Colors.purple;
+      case 'completed':
+        return Colors.blue;
+      case 'cancelled':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Widget _buildInfoCard({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String content,
+    bool isMultiline = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: Colors.grey[800]!,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: isMultiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: iconColor.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              color: iconColor,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    color: Colors.white60,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  content,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    height: isMultiline ? 1.4 : 1.0,
+                  ),
+                  maxLines: isMultiline ? null : 1,
+                  overflow: isMultiline ? null : TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getPaymentMethodText(String? method) {
+    switch (method?.toLowerCase()) {
+      case 'full':
+        return 'Pago único al inicio';
+      case 'split':
+        return 'Dos pagos (inicio y final)';
+      case 'result':
+        return 'Pago por resultado';
+      default:
+        return 'No especificado';
     }
   }
 

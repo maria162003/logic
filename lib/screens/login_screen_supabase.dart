@@ -464,10 +464,27 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         String errorMessage = authProvider.error ?? 'Error de autenticación';
         
-        // Verificar si es error de email no confirmado
-        if (errorMessage.toLowerCase().contains('confirm') || 
-            errorMessage.toLowerCase().contains('email') ||
-            errorMessage.toLowerCase().contains('verification')) {
+        // Primero verificar si es error de credenciales incorrectas o usuario inexistente
+        if (errorMessage.toLowerCase().contains('incorrectos') ||
+            errorMessage.toLowerCase().contains('invalid login credentials')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Usuario no existe o credenciales incorrectas. Por favor regístrate si aún no tienes una cuenta.',
+                style: GoogleFonts.poppins(),
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        } 
+        // Luego verificar si es error de email no confirmado
+        else if (errorMessage.toLowerCase().contains('confirma tu email') || 
+                 errorMessage.toLowerCase().contains('email not confirmed')) {
           _showEmailVerificationDialog();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(

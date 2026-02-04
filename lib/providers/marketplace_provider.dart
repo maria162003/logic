@@ -69,7 +69,7 @@ class MarketplaceProvider extends ChangeNotifier {
   // ========================================
   
   // Cargar casos del marketplace
-  Future<void> loadMarketplaceCases({bool refresh = false}) async {
+  Future<void> loadMarketplaceCases({bool refresh = false, bool isStudent = false}) async {
     if (!refresh && _marketplaceCases.isNotEmpty) return;
     
     _setLoading(true);
@@ -80,6 +80,7 @@ class MarketplaceProvider extends ChangeNotifier {
         category: _selectedCategory == 'Todas' ? null : _selectedCategory,
         location: _selectedLocation == 'Nacional' ? null : _selectedLocation,
         limit: 50,
+        isStudent: isStudent,
       );
       
       _marketplaceCases = cases;
@@ -94,11 +95,12 @@ class MarketplaceProvider extends ChangeNotifier {
   Future<void> filterCases({
     String? category,
     String? location,
+    bool isStudent = false,
   }) async {
     if (category != null) _selectedCategory = category;
     if (location != null) _selectedLocation = location;
     
-    await loadMarketplaceCases(refresh: true);
+    await loadMarketplaceCases(refresh: true, isStudent: isStudent);
   }
   
   // Crear nuevo caso
@@ -483,4 +485,99 @@ class MarketplaceProvider extends ChangeNotifier {
       return 'hace un momento';
     }
   }
+  
+  // ========================================
+  // MÉTODOS PARA SISTEMA DE LÍMITES DE PROPUESTAS
+  // ========================================
+  
+  // Obtener número máximo de propuestas por caso (valor por defecto: 5)
+  int getMaxProposals(Map<String, dynamic> caseData) {
+    return caseData['max_proposals'] ?? 5;
+  }
+  
+  // Obtener contador actual de propuestas
+  int getCurrentProposalsCount(Map<String, dynamic> caseData) {
+    return caseData['current_proposals_count'] ?? 0;
+  }
+  
+  // Calcular cupos disponibles
+  int getAvailableSlots(Map<String, dynamic> caseData) {
+    final max = getMaxProposals(caseData);
+    final current = getCurrentProposalsCount(caseData);
+    return (max - current).clamp(0, max);
+  }
+  
+  // Verificar si un caso acepta más propuestas
+  bool canSubmitProposal(Map<String, dynamic> caseData) {
+    final status = caseData['status']?.toString() ?? 'open';
+    
+    // Solo casos con estado 'open' aceptan propuestas
+    if (status != 'open') return false;
+    
+    // Verificar si hay cupos disponibles
+    return getAvailableSlots(caseData) > 0;
+  }
+  
+  // Obtener estado visual del caso
+  CaseAvailabilityStatus getCaseStatus(Map<String, dynamic> caseData) {
+    final status = caseData['status']?.toString() ?? 'open';
+    
+    // Casos cerrados (propuesta aceptada o asignada)
+    if (status == 'accepted' || status == 'assigned') {
+      return CaseAvailabilityStatus.closed;
+    }
+    
+    // Casos expirados (más de 7 días sin aceptación)
+    if (status == 'expired') {
+      return CaseAvailabilityStatus.expired;
+    }
+    
+    // Casos llenos (límite de propuestas alcanzado)
+    if (status == 'full') {
+      return CaseAvailabilityStatus.full;
+    }
+    
+    final availableSlots = getAvailableSlots(caseData);
+    if (availableSlots == 0) {
+      return CaseAvailabilityStatus.full;
+    }
+    
+    if (availableSlots <= 2) {
+      return CaseAvailabilityStatus.almostFull;
+    }
+    
+    return CaseAvailabilityStatus.open;
+  }
+  
+  // Obtener mensaje descriptivo del estado
+  String getStatusMessage(Map<String, dynamic> caseData) {
+    final caseStatus = getCaseStatus(caseData);
+    final availableSlots = getAvailableSlots(caseData);
+    
+    switch (caseStatus) {
+      case CaseAvailabilityStatus.closed:
+        return 'Caso cerrado - Propuesta aceptada';
+      case CaseAvailabilityStatus.expired:
+        return 'Caso expirado - Sin respuesta del cliente';
+      case CaseAvailabilityStatus.full:
+        return 'Cupo lleno - No se aceptan más propuestas';
+      case CaseAvailabilityStatus.almostFull:
+        return '¡Últimos $availableSlots cupo${availableSlots > 1 ? 's' : ''} disponible${availableSlots > 1 ? 's' : ''}!';
+      case CaseAvailabilityStatus.open:
+        return '$availableSlots cupo${availableSlots > 1 ? 's' : ''} disponible${availableSlots > 1 ? 's' : ''}';
+    }
+  }
 }
+
+// ========================================
+// ENUMS
+// ========================================
+
+enum CaseAvailabilityStatus {
+  open,        // Caso abierto con cupos disponibles
+  almostFull,  // Quedan pocos cupos (≤2)
+  full,        // Alcanzó el límite de propuestas
+  closed,      // Caso cerrado (propuesta aceptada)
+  expired,     // Caso expirado (más de 7 días sin aceptación)
+}
+

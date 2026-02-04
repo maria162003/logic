@@ -463,6 +463,7 @@ class _MyCasesScreenSupabaseState extends State<MyCasesScreenSupabase> {
     final status = case_['status'] ?? 'Sin estado';
     final type = case_['case_type'] ?? case_['category'] ?? 'Sin categoría';
     final createdAt = case_['created_at'];
+    final isInProgress = status.toLowerCase() == 'assigned' || status.toLowerCase() == 'active';
     
     DateTime? date;
     if (createdAt != null) {
@@ -491,23 +492,14 @@ class _MyCasesScreenSupabaseState extends State<MyCasesScreenSupabase> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header con título y estado
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildStatusChip(status),
-                ],
+              // Header con título
+              Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
               ),
               const SizedBox(height: 8),
               // Descripción
@@ -555,6 +547,63 @@ class _MyCasesScreenSupabaseState extends State<MyCasesScreenSupabase> {
                   ),
                 ],
               ),
+              // Mostrar progreso y estado si está en progreso
+              if (isInProgress) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _getStatusColorForStatus(status).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _getStatusColorForStatus(status).withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      // Indicador de progreso
+                      SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            CircularProgressIndicator(
+                              value: (case_['progress'] ?? 0) / 100,
+                              strokeWidth: 3,
+                              backgroundColor: Colors.grey[700],
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                _getProgressColor(case_['progress'] ?? 0),
+                              ),
+                            ),
+                            Text(
+                              '${case_['progress'] ?? 0}%',
+                              style: GoogleFonts.poppins(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: _getProgressColor(case_['progress'] ?? 0),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Estado del caso
+                      _buildStatusChip(status),
+                    ],
+                  ),
+                ),
+              ],
+              // Si no está en progreso, mostrar solo el estado
+              if (!isInProgress) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    _buildStatusChip(status),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -638,6 +687,40 @@ class _MyCasesScreenSupabaseState extends State<MyCasesScreenSupabase> {
         return Icons.computer;
       default:
         return Icons.folder_outlined;
+    }
+  }
+
+  Color _getProgressColor(int progress) {
+    if (progress < 25) {
+      return Colors.red;
+    } else if (progress < 50) {
+      return Colors.orange;
+    } else if (progress < 75) {
+      return Colors.blue;
+    } else {
+      return Colors.green;
+    }
+  }
+
+  Color _getStatusColorForStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'active':
+      case 'abierto':
+      case 'activo':
+        return AppColors.success;
+      case 'assigned':
+        return Colors.green;
+      case 'closed':
+      case 'cerrado':
+        return AppColors.error;
+      case 'pending':
+      case 'pendiente':
+        return Colors.orange;
+      case 'in_progress':
+      case 'en_progreso':
+        return Colors.blue;
+      default:
+        return Colors.grey;
     }
   }
 

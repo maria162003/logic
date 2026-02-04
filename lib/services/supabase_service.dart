@@ -201,18 +201,29 @@ class SupabaseService {
     String? location,
     int limit = 20,
     int offset = 0,
+    bool isStudent = false,
   }) async {
     try {
       var query = client
           .from('marketplace_cases')
-          .select('*');
+          .select('*, user_profiles!marketplace_cases_client_id_fkey(full_name, profile_image_url, location)');
       
-      // CORREGIDO: Solo mostrar casos abiertos en el marketplace público
-      // Los casos 'assigned' ya no están disponibles para nuevas propuestas
-      query = query.eq('status', 'open');
+      // CORREGIDO: Solo mostrar casos activos en el marketplace público
+      // Excluir casos: assigned (ya asignados), expired (más de 7 días sin aceptación)
+      // Incluir: open (disponibles) y full (llenos pero aún activos)
+      query = query.inFilter('status', ['open', 'full']);
       
-      if (category != null && category != 'Todas') {
-        query = query.eq('category', category);
+      // FILTRO PARA ESTUDIANTES: Solo mostrar casos de "Trámites Jurídicos"
+      if (isStudent) {
+        query = query.eq('category', 'Trámites Jurídicos');
+      } else {
+        // Para abogados: NO mostrar casos de "Trámites Jurídicos"
+        query = query.neq('category', 'Trámites Jurídicos');
+        
+        // Aplicar filtro de categoría si se especifica
+        if (category != null && category != 'Todas') {
+          query = query.eq('category', category);
+        }
       }
       
       if (location != null && location != 'Nacional') {
@@ -223,7 +234,7 @@ class SupabaseService {
           .order('created_at', ascending: false)
           .range(offset, offset + limit - 1);
       
-      print('✅ SUPABASE: getMarketplaceCases exitoso - ${response.length} casos ABIERTOS encontrados');
+      print('✅ SUPABASE: getMarketplaceCases exitoso - ${response.length} casos ABIERTOS encontrados (isStudent: $isStudent)');
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       print('❌ SUPABASE: Error al obtener casos del marketplace: $e');
@@ -411,10 +422,25 @@ class SupabaseService {
     await _ensureLawyerExists(user.id);
     print('🔧 Verificación de abogado completada');
     
-    // Obtener información del caso
+    // VALIDACIÓN 1: Verificar si ya envió una propuesta a este caso
+    print('🔍 Verificando propuestas existentes del abogado...');
+    final existingProposal = await client
+        .from('proposals')
+        .select('id')
+        .eq('case_id', caseId)
+        .eq('lawyer_id', user.id)
+        .maybeSingle();
+    
+    if (existingProposal != null) {
+      throw Exception('Ya enviaste una propuesta para este caso');
+    }
+    print('✅ No hay propuestas previas');
+    
+    // VALIDACIÓN 2: Obtener información del caso y verificar límites
+    print('🔍 Obteniendo datos del caso y contando propuestas...');
     final caseData = await client
         .from('marketplace_cases')
-        .select('client_id, title')
+        .select('client_id, title, status, max_proposals, current_proposals_count')
         .eq('id', caseId)
         .single();
     
@@ -425,7 +451,23 @@ class SupabaseService {
       throw Exception('No puedes enviar propuesta a tu propio caso');
     }
     
-    // Insertar propuesta
+    // VALIDACIÓN 3: Verificar estado del caso
+    if (caseData['status'] != 'open') {
+      throw Exception('Este caso ya no está disponible para propuestas');
+    }
+    
+    // VALIDACIÓN 4: Verificar límite de propuestas (con valor por defecto de 5)
+    final maxProposals = caseData['max_proposals'] ?? 5;
+    final currentCount = caseData['current_proposals_count'] ?? 0;
+    
+    if (currentCount >= maxProposals) {
+      throw Exception('Este caso ya alcanzó el límite de propuestas ($maxProposals)');
+    }
+    
+    print('✅ Hay cupos disponibles: $currentCount/$maxProposals');
+    
+    // TRANSACCIÓN: Insertar propuesta e incrementar contador
+    // Usamos RPC para garantizar atomicidad y evitar race conditions
     final proposalData = {
       'case_id': caseId,
       'lawyer_id': user.id,
@@ -435,13 +477,33 @@ class SupabaseService {
       'estimated_days': estimatedDays,
       'payment_method': paymentMethod,
       'proposal_details': proposalDetails,
+      'status': 'pending',
     };
     
     print('📝 Datos de la propuesta a insertar: $proposalData');
     
-    final result = await client.from('proposals').insert(proposalData);
+    // Insertar propuesta
+    await client.from('proposals').insert(proposalData);
+    print('✅ Propuesta insertada');
     
-    print('✅ Propuesta insertada: $result');
+    // Incrementar contador y verificar si se debe cambiar el estado
+    final newCount = currentCount + 1;
+    final updates = <String, dynamic>{
+      'current_proposals_count': newCount,
+    };
+    
+    // Si alcanza el máximo, cambiar estado a 'full'
+    if (newCount >= maxProposals) {
+      updates['status'] = 'full';
+      print('🔒 Caso lleno: cambiando estado a "full"');
+    }
+    
+    await client
+        .from('marketplace_cases')
+        .update(updates)
+        .eq('id', caseId);
+    
+    print('✅ Contador actualizado: $newCount/$maxProposals');
     
     // TODO: Crear notificación para el cliente cuando se resuelva el esquema de DB
     // await createNotification(
@@ -453,6 +515,46 @@ class SupabaseService {
     // );
     
     print('🔔 Notificación saltada temporalmente');
+  }
+  
+  // Manejar rechazo de propuesta - liberar cupo
+  static Future<void> _handleProposalRejection(String caseId) async {
+    try {
+      print('🔄 SUPABASE: Manejando rechazo de propuesta para caso $caseId');
+      
+      // Obtener datos actuales del caso
+      final caseData = await client
+          .from('marketplace_cases')
+          .select('current_proposals_count, max_proposals, status')
+          .eq('id', caseId)
+          .single();
+      
+      final currentCount = (caseData['current_proposals_count'] ?? 0) as int;
+      final maxProposals = (caseData['max_proposals'] ?? 5) as int;
+      
+      // Decrementar contador (mínimo 0)
+      final newCount = (currentCount - 1).clamp(0, maxProposals);
+      
+      final updates = <String, dynamic>{
+        'current_proposals_count': newCount,
+      };
+      
+      // Si estaba lleno y ahora hay espacio, volver a abrirlo
+      if (caseData['status'] == 'full' && newCount < maxProposals) {
+        updates['status'] = 'open';
+        print('🔓 SUPABASE: Reabriendo caso - cupos disponibles: $newCount/$maxProposals');
+      }
+      
+      await client
+          .from('marketplace_cases')
+          .update(updates)
+          .eq('id', caseId);
+      
+      print('✅ SUPABASE: Contador actualizado: $newCount/$maxProposals');
+    } catch (e) {
+      print('❌ SUPABASE ERROR en _handleProposalRejection: $e');
+      // No re-lanzar el error para no interrumpir el flujo principal
+    }
   }
 
   // Asegurar que el usuario existe en la tabla lawyers
@@ -772,6 +874,9 @@ class SupabaseService {
       print('🔍 PROPUESTA ESPECÍFICA ID: $proposalId');
       print('🔍 LAWYER_ID de esta propuesta: ${proposalData['lawyer_id']}');
       
+      // Obtener estado anterior de la propuesta
+      final previousStatus = proposalData['status'];
+      
       // Actualizar estado
       await client
           .from('proposals')
@@ -784,6 +889,12 @@ class SupabaseService {
       if (status == 'accepted') {
         await _acceptProposal(proposalData);
         print('✅ SUPABASE: Propuesta aceptada y caso activo creado');
+      }
+      
+      // Si se rechaza una propuesta que estaba pendiente, liberar un cupo
+      if (status == 'rejected' && previousStatus == 'pending') {
+        await _handleProposalRejection(proposalData['case_id']);
+        print('✅ SUPABASE: Cupo liberado por rechazo de propuesta');
       }
       
     } catch (e, stackTrace) {
@@ -847,13 +958,13 @@ class SupabaseService {
       
       print('✅ SUPABASE: Caso activo creado');
       
-      // 4. Actualizar estado del caso del marketplace
+      // 4. Actualizar estado del caso del marketplace a 'accepted'
       await client
           .from('marketplace_cases')
-          .update({'status': 'assigned'})
+          .update({'status': 'accepted'})
           .eq('id', proposalData['case_id']);
       
-      print('✅ SUPABASE: Estado del caso del marketplace actualizado');
+      print('✅ SUPABASE: Estado del caso del marketplace actualizado a accepted');
       
       // 5. Rechazar automáticamente otras propuestas del mismo caso
       print('🔄 SUPABASE: Rechazando otras propuestas del caso ${proposalData['case_id']}');
